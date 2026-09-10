@@ -67,7 +67,7 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
 ## Non-negotiable technical rules
 
 1. **Money = integer satang.** Never use floats for money. Column names end in `_satang`, TS fields end in `Satang`.
-   Rates are basis points (`staff_max_discount_bp = 500`). Round only via `divRound` in `shared/money.ts`
+   Percentages stored in the DB are basis points (5% = 500). Round only via `divRound` in `shared/money.ts`
    (half-up). Display as baht with thousand separators.
 2. **Snapshots.** Every sale/build/quote line stores the name, SKU, unit price, unit cost, and warranty at
    that moment. Never recompute historical documents from current product data.
