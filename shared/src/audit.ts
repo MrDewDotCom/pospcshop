@@ -11,6 +11,10 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'user.reset_password': 'ตั้งรหัสผ่านใหม่ให้ผู้ใช้',
   'settings.update': 'แก้ไขข้อมูลร้าน/ตั้งค่า',
   'sequence.update': 'แก้ไขรูปแบบเลขที่เอกสาร',
+  'category.create': 'เพิ่มหมวดหมู่',
+  'category.update': 'แก้ไขหมวดหมู่',
+  'category.archive': 'ซ่อนหมวดหมู่',
+  'category.unarchive': 'แสดงหมวดหมู่อีกครั้ง',
 };
 
 export function auditActionLabel(action: string): string {

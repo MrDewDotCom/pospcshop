@@ -8,6 +8,7 @@ import type { DatabaseManager } from './db/client';
 import { plainJsonSerializerCompiler, zodValidatorCompiler } from './lib/zod';
 import { auditRoutes } from './modules/audit/routes';
 import { authRoutes } from './modules/auth/routes';
+import { categoryRoutes } from './modules/categories/routes';
 import { fileRoutes } from './modules/files/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { setupRoutes } from './modules/setup/routes';
@@ -62,6 +63,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(settingsRoutes);
   await app.register(systemRoutes);
   await app.register(fileRoutes);
+  await app.register(categoryRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {

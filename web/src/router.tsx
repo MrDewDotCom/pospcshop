@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AccountPage } from '@/features/auth/AccountPage';
+import { CategoriesPage } from '@/features/categories/CategoriesPage';
 import { GuestOnly, RequireAuth, SetupGate } from '@/features/auth/guards';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RecoverPage } from '@/features/auth/RecoverPage';
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <HomePage /> },
               { path: 'account', element: <AccountPage /> },
+              { path: 'categories', element: <CategoriesPage /> },
               {
                 path: 'settings',
                 element: <SettingsLayout />,
