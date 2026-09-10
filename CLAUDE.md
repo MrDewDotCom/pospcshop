@@ -21,7 +21,7 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
 
 ## Current status
 - Phase 0 (planning): PLAN.md revised with the owner's answers (decisions log in PLAN.md §1.1).
-  Open questions OQ1–OQ3 are in PLAN.md §1.2. Awaiting the final go-ahead for Phase 1.
+  Open questions OQ2–OQ3 are in PLAN.md §1.2. Awaiting the final go-ahead for Phase 1.
 - This build is a **demo** for a prospective client. Keep scope tight; tax features are deferred.
 
 ## Key product decisions (details in PLAN.md §1)
@@ -40,8 +40,9 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
   stock change; restocking/claiming/writing off is a separate explicit action.
 - **Tags:** automatic tags derived in `shared/tags.ts` (condition, warranty type/period, discount, returned,
   stock, awaiting price) plus owner-defined custom tags.
-- **Goods receipts entered by staff** are `cost_status='unverified'` until the owner verifies them (whether
-  staff may type costs at all is OQ1). Stock goes in immediately.
+- **Goods receipts (the one exception to "staff never touch money"):** staff may type the supplier's unit
+  cost (write-only; they can never read it back). Staff receipts are `cost_status='unverified'` until the
+  owner confirms or corrects each line. Stock goes in immediately on confirmation.
 - **No VAT / tax invoices** in this version. Prices are final. Keep VAT addable as one step in `shared/pricing.ts`.
 - **Receipts are online documents** (PNG for LINE/Messenger + A4 PDF). No printing and no thermal layout.
 - Costing: moving weighted average per product; document lines snapshot the cost.

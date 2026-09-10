@@ -1,6 +1,6 @@
 # PC Shop Manager — Plan (Phase 0)
 
-> Status: **Revised a second time after the owner's answers (see §1). Three open questions remain in §1.2.
+> Status: **Revised after the owner's answers (see §1). Two open questions remain in §1.2 (OQ2, OQ3).
 > Awaiting final approval to start Phase 1.** No application code has been written yet.
 > Project context: this build is a **demo** for a prospective client. Tax features (VAT, tax invoices)
 > are deferred to a possible paid follow-up.
@@ -33,7 +33,7 @@
 | # | Topic | Decision | Source |
 |---|---|---|---|
 | Q1 | When stock changes | **Stock changes only on payment or an explicit user confirmation.** Nothing implicit: the cart, build drafts, presets, and quotes never touch stock. The actions that change stock are: confirm checkout (POS / convert quote), confirm goods receipt, confirm build assembly, confirm stock adjustment, confirm restocking a returned item, void, and later confirm repair parts. Each one shows a confirmation dialog summarizing the stock effect. | Owner |
-| Q2 | Staff entering costs on goods receipts | Staff **may enter unit costs** when receiving. A receipt saved by staff has `cost_status = 'unverified'` until the owner reviews it and confirms or corrects each line. Staff can never see those costs again after saving (write-only). ⚠️ This may conflict with Q7, see **OQ1**. | Owner |
+| Q2 / OQ1 | Staff entering costs on goods receipts | **Option (a), the single exception to Q7:** staff **may enter the supplier's unit cost** when receiving. A receipt saved by staff has `cost_status = 'unverified'`, and staff can never see those costs again after saving (write-only). The owner must review the receipt and **confirm or correct** each line before it becomes verified. Receipts created by the owner are verified immediately. Quantities and serials enter stock **immediately** when the receipt is confirmed, so the items can be sold while the cost awaits review. The *product's* cost field itself stays owner-only. | Owner |
 | Q3 | Costing method | Moving weighted average per product, with the cost snapshotted on each document line. Each serial item also keeps its own actual cost for reference. | Default (not objected) |
 | Q4 | Tax / VAT | **Out of scope for this version.** No VAT, no tax invoices, no tax IDs. Prices are final prices. `shared/pricing.ts` is structured so VAT can be added later as one extra step. | Owner |
 | Q5 | Receipts | The receipt is an **online document** sent to the customer (LINE/Messenger) so they can see what they bought. Output is PNG (primary) and A4 PDF. No printer support, no thermal layout, and no print button. | Owner |
@@ -48,12 +48,7 @@
 
 ### 1.2 Open questions
 
-**OQ1 — Can staff enter costs on goods receipts? (Q2 vs. Q7)** ❓
-Q2 allows staff to enter unit costs when receiving goods, but Q7 says staff must not touch anything money-related, including cost.
-- **(a) Recommended:** keep Q2 as the single exception. Staff type the supplier's unit cost from the invoice onto the *receipt* (write-only, marked "unverified"), and the owner verifies or corrects it. The *product's* cost field itself stays owner-only. This saves the owner from typing every cost and still gives them the final say.
-- **(b) Strict Q7:** staff record only quantities and serials. The receipt is "awaiting cost" and the owner enters all the costs.
-
-In both cases the stock goes in **immediately** on confirmation, so staff can sell the items right away. Until the owner verifies, those units carry a provisional cost (the staff-entered cost in (a), the current average in (b)). A sale made before verification keeps that provisional cost, so its profit may be slightly off.
+**OQ1 — Resolved: option (a).** See Q2 / OQ1 in §1.1.
 
 **OQ2 — Build package prices.** ❓
 The original spec gives builds (and quotes) a manual "discount". Following Q6, I propose builds use the same price-reduction model as products:
@@ -85,7 +80,7 @@ Q7 lists only images and details as editable by staff. If staff can't create pro
 | P12 | **Build states draft → assembled → sold** (assembled only through an explicit confirmation, per Q1) | Supports pre-built machines on the shelf and matches the "used in build" movement type in the spec |
 | P13 | Money columns always end in `_satang` (TS: `priceSatang`) | The unit is visible in the name, which prevents ×100 bugs |
 | P14 | No server-side image processing (no `sharp`). The client resizes and uploads both the full image and a thumbnail. | Fewer native dependencies, and no CPU load on the shop PC |
-| P15 | **Goods-receipt cost review** (Q2): staff-entered costs are provisional until the owner verifies them. Corrections adjust the average cost and are logged. | Balances staff convenience with the owner's control over cost accuracy (subject to OQ1) |
+| P15 | **Goods-receipt cost review** (Q2): staff-entered costs are provisional until the owner verifies them. Corrections adjust the average cost and are logged. | Balances staff convenience with the owner's control over cost accuracy (confirmed as OQ1 a) |
 | P16 | **Returned items go into quarantine** (status "Returned", not sellable) until someone explicitly restocks, claims, or writes them off | A returned item may be faulty; it shouldn't be sold again automatically. This also matches Q1 (stock changes only on explicit confirmation). |
 | P17 | **Warranty type as a structured field** (`distributor` = ประกันศูนย์ไทย, `shop` = ประกันร้าน, `none` = ไม่มีประกัน) next to `warranty_months`, displayed as a tag | Receipts and warranty lookups need it as data, not free text, and "ประกันศูนย์ vs. ประกันร้าน" matters a lot to Thai PC buyers |
 | P18 | **Discount badge % is rounded down** to a whole number (100 → 79 shows "-21%", 1,990 → 1,590 shows "-20%") | Never overstates the discount to customers |
@@ -364,7 +359,7 @@ erDiagram
 | id, doc_no (unique) | |
 | supplier_id, supplier_invoice_no, received_at, notes | |
 | status | `posted` \| `voided` |
-| cost_status | `unverified` \| `verified`. Owner-created receipts are `verified` immediately (see OQ1). |
+| cost_status | `unverified` \| `verified`. Staff-created receipts start `unverified`; owner-created receipts are `verified` immediately. |
 | cost_verified_by, cost_verified_at | |
 | total_cost_satang | owner only |
 | created_by, voided_at, voided_by, void_reason | |
@@ -536,7 +531,7 @@ erDiagram
 
 ### 7.2 Cost (moving weighted average) and goods-receipt cost review
 - On receipt: `newAvg = divRound(onHand × avg + qty × unitCost, onHand + qty)`. If `onHand ≤ 0`, `newAvg = unitCost`.
-- **Staff receipts:** quantities and serials go into stock immediately. The average cost is updated **provisionally** with the staff-entered cost (OQ1 a) or not at all (OQ1 b, where the line has no cost yet). The receipt is `cost_status = 'unverified'`.
+- **Staff receipts:** quantities and serials go into stock immediately, and the average cost is updated **provisionally** with the staff-entered cost. The receipt is `cost_status = 'unverified'`. If staff leave a line's cost empty, that line uses the product's current average as its provisional cost.
 - **Owner review:** the owner confirms the receipt or corrects line costs. For each changed line:
   `delta = qty × (finalCost − provisionalCost)`. If the product's `onHand > 0`: `avg = max(0, divRound(onHand × avg + delta, onHand))`. Serial items from that line get the final `unit_cost_satang`.
   Sales made between receipt and review keep their provisional cost snapshot (a document snapshot is never rewritten), and the audit log records the before and after values. Then `cost_status = 'verified'`.
@@ -649,7 +644,7 @@ sold ──warranty claim (Phase 5)──→ in_claim → sold (same unit back) 
 | Set selling price / regular price / end discount / cost override | ✅ | ❌ |
 | Manage custom tags and assign tags to products | ✅ | ❌ |
 | Archive products/categories/customers/suppliers | ✅ | ❌ |
-| Receive goods (confirm stock in) | ✅ | ✅ (costs: see OQ1) |
+| Receive goods (confirm stock in) and enter supplier unit costs (write-only, unverified) | ✅ | ✅ |
 | Review/verify goods-receipt costs | ✅ | ❌ |
 | Void goods receipts / adjust stock | ✅ | ❌ |
 | Sell: checkout with cash/transfer and the amount received | ✅ | ✅ |
@@ -888,7 +883,7 @@ price, the struck-through regular price, and the "-X%" badge everywhere, and `Pr
 9. **Products:** CRUD with the role-based field rules, search/filters, images, owner pricing endpoint + price history + `PriceTag` badge, barcode lookup (+ Thai layout mapping)
 10. **Tags:** custom tag management, product tag assignment, automatic tag derivation, `ProductTags` chips + filters
 11. **Stock service + suppliers + goods receiving (serials, confirm dialog)** + ledger integration tests
-12. **Goods-receipt cost review** (per OQ1) + tests
+12. **Goods-receipt cost review** (owner confirm/correct, average cost correction) + tests
 13. **Stock adjustments + movement history + integrity check + phone stock lookup**
 14. **No-cost-leak + no-money-write tests** (every route as staff)
 15. **Backup/restore:** automatic + button + restore page + tests
