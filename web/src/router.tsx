@@ -6,7 +6,10 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { RecoverPage } from '@/features/auth/RecoverPage';
 import { HomePage } from '@/features/home/HomePage';
 import { NotFoundPage } from '@/features/home/NotFoundPage';
+import { SettingsLayout } from '@/features/settings/SettingsLayout';
 import { SetupPage } from '@/features/setup/SetupPage';
+import { AuditLogPage } from '@/features/users/AuditLogPage';
+import { UsersPage } from '@/features/users/UsersPage';
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +31,14 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <HomePage /> },
               { path: 'account', element: <AccountPage /> },
+              {
+                path: 'settings',
+                element: <SettingsLayout />,
+                children: [
+                  { path: 'users', element: <UsersPage /> },
+                  { path: 'audit', element: <AuditLogPage /> },
+                ],
+              },
               { path: '*', element: <NotFoundPage /> },
             ],
           },

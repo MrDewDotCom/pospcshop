@@ -6,8 +6,10 @@ import { APP_NAME, APP_VERSION } from '@pcshop/shared';
 import type { DataPaths } from './config';
 import type { DatabaseManager } from './db/client';
 import { plainJsonSerializerCompiler, zodValidatorCompiler } from './lib/zod';
+import { auditRoutes } from './modules/audit/routes';
 import { authRoutes } from './modules/auth/routes';
 import { setupRoutes } from './modules/setup/routes';
+import { userRoutes } from './modules/users/routes';
 import { authPlugin } from './plugins/auth';
 import { registerErrorHandler } from './plugins/errors';
 
@@ -50,6 +52,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   }));
   await app.register(setupRoutes);
   await app.register(authRoutes);
+  await app.register(userRoutes);
+  await app.register(auditRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {

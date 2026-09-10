@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { House } from 'lucide-react';
+import { House, Settings } from 'lucide-react';
 import type { Permission } from '@pcshop/shared';
 
 export interface NavItem {
@@ -10,5 +10,9 @@ export interface NavItem {
   permission?: Permission;
 }
 
-// Grows as Phase 1 modules are built (products, receiving, stock, settings, …).
-export const NAV_ITEMS: NavItem[] = [{ to: '/', label: 'หน้าแรก', icon: House }];
+// Grows as Phase 1 modules are built (products, receiving, stock, …).
+export const NAV_ITEMS: NavItem[] = [
+  { to: '/', label: 'หน้าแรก', icon: House },
+  // Owner-only for now; staff get the phone-access tab in sub-task 6.
+  { to: '/settings', label: 'ตั้งค่า', icon: Settings, permission: 'settings.manage' },
+];
