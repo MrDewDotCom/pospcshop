@@ -8,8 +8,11 @@ import type { DatabaseManager } from './db/client';
 import { plainJsonSerializerCompiler, zodValidatorCompiler } from './lib/zod';
 import { auditRoutes } from './modules/audit/routes';
 import { authRoutes } from './modules/auth/routes';
+import { settingsRoutes } from './modules/settings/routes';
 import { setupRoutes } from './modules/setup/routes';
+import { systemRoutes } from './modules/system/routes';
 import { userRoutes } from './modules/users/routes';
+import { ensureDefaultSequences } from './services/numbering.service';
 import { authPlugin } from './plugins/auth';
 import { registerErrorHandler } from './plugins/errors';
 
@@ -38,6 +41,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false });
   app.decorate('database', options.database);
   app.decorate('paths', options.paths);
+  ensureDefaultSequences(options.database.db);
 
   app.setValidatorCompiler(zodValidatorCompiler);
   app.setSerializerCompiler(plainJsonSerializerCompiler);
@@ -54,6 +58,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(authRoutes);
   await app.register(userRoutes);
   await app.register(auditRoutes);
+  await app.register(settingsRoutes);
+  await app.register(systemRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {

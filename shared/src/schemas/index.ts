@@ -3,6 +3,7 @@ export * from './auth';
 export * from './shop';
 export * from './setup';
 export * from './users';
+export * from './settings';
 
 /** Shape of every API error response. */
 export interface ApiErrorBody {

@@ -13,6 +13,6 @@ export interface NavItem {
 // Grows as Phase 1 modules are built (products, receiving, stock, …).
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'หน้าแรก', icon: House },
-  // Owner-only for now; staff get the phone-access tab in sub-task 6.
-  { to: '/settings', label: 'ตั้งค่า', icon: Settings, permission: 'settings.manage' },
+  // Everyone: staff see only the tabs they may use (phone access).
+  { to: '/settings', label: 'ตั้งค่า', icon: Settings },
 ];

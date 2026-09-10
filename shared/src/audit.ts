@@ -9,6 +9,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'user.create': 'เพิ่มผู้ใช้',
   'user.update': 'แก้ไขผู้ใช้',
   'user.reset_password': 'ตั้งรหัสผ่านใหม่ให้ผู้ใช้',
+  'settings.update': 'แก้ไขข้อมูลร้าน/ตั้งค่า',
+  'sequence.update': 'แก้ไขรูปแบบเลขที่เอกสาร',
 };
 
 export function auditActionLabel(action: string): string {

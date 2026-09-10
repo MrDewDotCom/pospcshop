@@ -6,7 +6,10 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { RecoverPage } from '@/features/auth/RecoverPage';
 import { HomePage } from '@/features/home/HomePage';
 import { NotFoundPage } from '@/features/home/NotFoundPage';
+import { NumberingPage } from '@/features/settings/NumberingPage';
+import { PhoneAccessPage } from '@/features/settings/PhoneAccess';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
+import { ShopSettingsPage } from '@/features/settings/ShopSettingsPage';
 import { SetupPage } from '@/features/setup/SetupPage';
 import { AuditLogPage } from '@/features/users/AuditLogPage';
 import { UsersPage } from '@/features/users/UsersPage';
@@ -35,7 +38,10 @@ export const router = createBrowserRouter([
                 path: 'settings',
                 element: <SettingsLayout />,
                 children: [
+                  { path: 'shop', element: <ShopSettingsPage /> },
+                  { path: 'numbering', element: <NumberingPage /> },
                   { path: 'users', element: <UsersPage /> },
+                  { path: 'network', element: <PhoneAccessPage /> },
                   { path: 'audit', element: <AuditLogPage /> },
                 ],
               },

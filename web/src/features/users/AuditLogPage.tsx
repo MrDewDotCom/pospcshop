@@ -24,7 +24,7 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { errorMessage } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useAuditLogs } from './queries';
 
 const PAGE_SIZE = 30;
@@ -57,6 +57,7 @@ function describe(item: AuditLogItem): string {
 export function AuditLogPage() {
   const [page, setPage] = useState(1);
   const [action, setAction] = useState(ALL);
+  const format = useFormat();
   const { data, isPending, error } = useAuditLogs({
     page,
     pageSize: PAGE_SIZE,
@@ -126,7 +127,7 @@ export function AuditLogPage() {
             {data?.items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="whitespace-nowrap">
-                  {formatDateTime(item.createdAt)}
+                  {format.dateTime(item.createdAt)}
                 </TableCell>
                 <TableCell>{item.userName ?? 'ระบบ'}</TableCell>
                 <TableCell>{auditActionLabel(item.action)}</TableCell>

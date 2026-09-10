@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/PageHeader';
 import { errorMessage } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useCurrentUser } from '@/features/auth/queries';
 import { useUpdateUser, useUsers } from './queries';
 import { CreateUserDialog, EditUserDialog, ResetPasswordDialog } from './UserDialogs';
@@ -47,6 +47,7 @@ export function UsersPage() {
   const updateUser = useUpdateUser();
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const format = useFormat();
 
   const toggleActive = (user: User) =>
     updateUser.mutate(
@@ -128,7 +129,7 @@ export function UsersPage() {
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {formatDateTime(user.lastLoginAt)}
+                    {format.dateTime(user.lastLoginAt)}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

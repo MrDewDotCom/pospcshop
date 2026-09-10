@@ -4,6 +4,7 @@
 export * from './money';
 export * from './pricing';
 export * from './datetime';
+export * from './docNumber';
 export * from './enums';
 export * from './permissions';
 export * from './schemas';

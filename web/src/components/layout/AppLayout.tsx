@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCurrentUser, useLogout, useSetupStatus } from '@/features/auth/queries';
+import { PhoneAccessButton } from '@/features/settings/PhoneAccess';
 import { NAV_ITEMS } from './nav';
 
 function useVisibleNav() {
@@ -89,7 +90,8 @@ export function AppLayout() {
           <Monitor className="size-5 shrink-0 text-primary" />
           <span className="truncate">{status?.shopName ?? 'PC Shop Manager'}</span>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <PhoneAccessButton />
           <UserMenu />
         </div>
       </header>
