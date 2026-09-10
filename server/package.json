@@ -1,0 +1,21 @@
+{
+  "name": "@pcshop/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/app.ts",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/static": "^10.1.3",
+    "@pcshop/shared": "*",
+    "fastify": "^5.12.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.13"
+  }
+}

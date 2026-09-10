@@ -8,6 +8,7 @@ The detailed plan (schema, endpoints, screens, risks) is in [docs/PLAN.md](docs/
 starting any phase. When a decision there changes, update PLAN.md in the same commit.
 
 ## How to work with the user
+
 - Work **one phase at a time** (phases are listed in PLAN.md). At the end of each phase, STOP and give:
   a summary of what was done, step-by-step test instructions the user can follow, and the concepts they
   should understand. Wait for confirmation before starting the next phase.
@@ -20,11 +21,13 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
 - Every user-facing string in the app must be in **Thai**.
 
 ## Current status
+
 - Phase 0 (planning): approved. Decisions are in PLAN.md §1.
 - Phase 1: in progress (sub-tasks in PLAN.md §15).
 - This build is a **demo** for a prospective client. Keep scope tight; tax features are deferred.
 
 ## Key product decisions (details in PLAN.md §1)
+
 - **Stock changes only on payment or an explicit user confirmation** (confirm checkout, goods receipt,
   build assembly, adjustment, restocking a return, void). Carts, build drafts, presets, and quotes never
   touch or reserve stock.
@@ -50,7 +53,9 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
 - Costing: moving weighted average per product; document lines snapshot the cost.
 
 ## Stack
+
 TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
+
 - web: React + Vite, Tailwind v4, shadcn/ui, TanStack Query, React Hook Form + Zod, react-router,
   Recharts, react-konva (Phase 4), html-to-image + jsPDF, qrcode, promptpay-qr
 - server: Fastify, better-sqlite3 + Drizzle ORM (+ drizzle-kit migrations), Zod via fastify-type-provider-zod
@@ -60,6 +65,7 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
 - fonts: `@fontsource/*` only; never use a CDN
 
 ## Non-negotiable technical rules
+
 1. **Money = integer satang.** Never use floats for money. Column names end in `_satang`, TS fields end in `Satang`.
    Rates are basis points (`staff_max_discount_bp = 500`). Round only via `divRound` in `shared/money.ts`
    (half-up). Display as baht with thousand separators.
@@ -95,6 +101,7 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
     if nothing is found, convert Thai Kedmanee characters to QWERTY and retry.
 
 ## Conventions
+
 - Server modules: `server/src/modules/<name>/{routes.ts,service.ts}`. Keep routes thin and put logic in services.
   Cross-module logic goes in `server/src/services/`.
 - Web features: `web/src/features/<name>/`. Shared UI goes in `web/src/components/`, shadcn primitives in `components/ui/`.
@@ -109,4 +116,23 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
 - Compatibility rules (Phase 3) go one per file in `shared/compat/rules/` and are registered in `registry.ts`.
 
 ## Commands
-(To be filled in during Phase 1 scaffold.)
+
+Run from the repo root (Node ≥ 22.12; developed on Node 24, Windows).
+
+| Command                             | What it does                                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| `npm run dev`                       | Fastify on :3300 (tsx watch) + Vite on :5173 (proxies `/api`, `/uploads`). Open :5173. |
+| `npm run build`                     | Builds `web/dist` (Vite) and bundles the server into `server/dist/main.js` (esbuild).  |
+| `npm start`                         | Production: one process on :3300 serving the API and the built web app.                |
+| `npm test`                          | Vitest (projects: `shared`, `server`). `npm run test:watch` for watch mode.            |
+| `npm run typecheck`                 | `tsc --noEmit` in every workspace.                                                     |
+| `npm run lint`                      | ESLint (flat config, typescript-eslint + react-hooks).                                 |
+| `npm run format`                    | Prettier (+ Tailwind class sorting). `format:check` to verify.                         |
+| `npx shadcn@4.21.0 add <component>` | Run inside `web/` to add a shadcn component.                                           |
+
+Notes:
+
+- TypeScript is pinned to `~6.0.3` (typescript-eslint doesn't support 7.x yet). TS 6 defaults `types` to `[]`,
+  so each tsconfig lists its types explicitly.
+- `shared` is consumed as TS source. The server build aliases `@pcshop/shared` to `shared/src` so it's bundled in.
+- In production, `main.ts` serves `../../web/dist` relative to the bundle (`__PRODUCTION__` is defined by the build).
