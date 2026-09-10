@@ -58,7 +58,8 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
 
 - web: React + Vite, Tailwind v4, shadcn/ui, TanStack Query, React Hook Form + Zod, react-router,
   Recharts, react-konva (Phase 4), html-to-image + jsPDF, qrcode, promptpay-qr
-- server: Fastify, better-sqlite3 + Drizzle ORM (+ drizzle-kit migrations), Zod via fastify-type-provider-zod
+- server: Fastify, better-sqlite3 + Drizzle ORM (+ drizzle-kit migrations), Zod via our own
+  `server/src/lib/zod.ts` (validator compiler + `ZodTypeProvider`; use `app.withTypeProvider<ZodTypeProvider>()`)
 - shared: Zod schemas, pricing math, permissions, spec definitions, compatibility rules. Exported as TS
   source (no build step); consumed by both server and web.
 - tests: Vitest (unit tests in shared, integration tests in server via `app.inject()` + in-memory SQLite)
@@ -108,6 +109,12 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
 - API: `/api/*`, JSON only. Errors are `{ error: { code: 'UPPER_SNAKE', message: '<Thai message>', details? } }`.
   Lists return `{ items, total }` with `?page=&pageSize=&q=`. Dates are ISO-8601 UTC strings.
 - Non-GET requests must send the header `X-PCShop: 1` (CSRF guard). Auth uses the httpOnly `sid` session cookie.
+- Every `/api` and `/uploads` route requires login by default. Mark exceptions with `config: { public: true }`.
+  Guard owner actions with `preHandler: requirePermission('...')` (server/src/plugins/auth.ts).
+- Throw `AppError` helpers from `server/src/lib/errors.ts` (`badRequest`, `forbidden`, `notFound`, `conflict`, …)
+  with Thai messages. The error handler formats them. The web `api` wrapper surfaces `error.message` as-is.
+- Server tests use `createTestApp()` / `setUpShop()` / `TestClient` from `server/test/helpers.ts`
+  (in-memory DB, cookie + CSRF header handled for you).
 - Enums live in `shared/enums.ts`, and DB enums use text columns with CHECK constraints.
 - IDs are integer autoincrement.
 - Permissions come from `can(role, action)` in `shared/permissions.ts`. Check them on the server; the UI only hides things.
@@ -129,6 +136,7 @@ Run from the repo root (Node ≥ 22.12; developed on Node 24, Windows).
 | `npm run lint`                      | ESLint (flat config, typescript-eslint + react-hooks).                                 |
 | `npm run format`                    | Prettier (+ Tailwind class sorting). `format:check` to verify.                         |
 | `npx shadcn@4.21.0 add <component>` | Run inside `web/` to add a shadcn component.                                           |
+| `npm run reset-password -- <user>`  | Emergency reset: prints a temporary password (`--prod` targets `%APPDATA%` data).      |
 
 Database migrations: edit `server/src/db/schema/*`, then run `npx drizzle-kit generate --name <short_name>`
 **inside `server/`** (npm doesn't forward `--name` through the root script). Commit the generated

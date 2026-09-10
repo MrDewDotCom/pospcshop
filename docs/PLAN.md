@@ -129,6 +129,12 @@ html-to-image, jsPDF, Vitest, @fontsource (Thai fonts)
   `npm audit` flags an old esbuild copy inside drizzle-kit. It's a dev-only tool and the advisory concerns
   esbuild's dev server, so it doesn't affect the shipped app (`npm audit --omit=dev` is clean).
 - better-sqlite3 13 installs from a prebuilt binary on Windows + Node 24 (bundled SQLite 3.53).
+- **`fastify-type-provider-zod` is not used.** Its current versions (6.x, 7.x) require `@fastify/swagger` and
+  `openapi-types` as peer dependencies. Instead, `server/src/lib/zod.ts` (~30 lines) gives Fastify a Zod
+  validator compiler and a type provider. The result is the same, with fewer dependencies.
+- `sonner` is used directly (shadcn's sonner wrapper would add `next-themes`).
+- React Router is v8 (same API as v7 without the old future flags): `createBrowserRouter` from `react-router`,
+  `RouterProvider` from `react-router/dom`.
 
 **I'll ask again when we reach the relevant phase:** `electron`, `electron-builder`, `@electron/rebuild`
 (Phase 7), and extra post fonts such as Kanit or Prompt via @fontsource (Phase 4).
@@ -727,11 +733,12 @@ lists return `{ items, total }` and accept `?page=&pageSize=&q=`.
 
 | Method         | Path                                          | Notes                                                                               |
 | -------------- | --------------------------------------------- | ----------------------------------------------------------------------------------- |
-| GET            | /setup/status                                 | installed yet?                                                                      |
+| GET            | /setup/status                                 | public: `{ needsSetup, shopName }` (the login page shows the shop name)             |
 | POST           | /setup                                        | create owner + shop info + optional seed; returns recovery code                     |
-| POST           | /auth/login · /auth/logout                    |                                                                                     |
+| POST           | /auth/login · /auth/logout                    | login: 5 failures / 5 min per username+IP → 429                                     |
 | GET            | /auth/me                                      | user + permissions                                                                  |
-| POST           | /auth/change-password                         |                                                                                     |
+| POST           | /auth/change-password                         | signs out the user's other sessions                                                 |
+| POST           | /auth/recover                                 | public: owner username + recovery code + new password → returns a new recovery code |
 | GET/POST       | /users 🔒                                     |                                                                                     |
 | PATCH          | /users/:id 🔒                                 | name, role, active                                                                  |
 | POST           | /users/:id/reset-password 🔒                  |                                                                                     |

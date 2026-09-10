@@ -5,6 +5,11 @@ import fastifyStatic from '@fastify/static';
 import { APP_NAME, APP_VERSION } from '@pcshop/shared';
 import type { DataPaths } from './config';
 import type { DatabaseManager } from './db/client';
+import { plainJsonSerializerCompiler, zodValidatorCompiler } from './lib/zod';
+import { authRoutes } from './modules/auth/routes';
+import { setupRoutes } from './modules/setup/routes';
+import { authPlugin } from './plugins/auth';
+import { registerErrorHandler } from './plugins/errors';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -32,7 +37,19 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.decorate('database', options.database);
   app.decorate('paths', options.paths);
 
-  app.get('/api/health', async () => ({ ok: true, name: APP_NAME, version: APP_VERSION }));
+  app.setValidatorCompiler(zodValidatorCompiler);
+  app.setSerializerCompiler(plainJsonSerializerCompiler);
+  registerErrorHandler(app);
+  // Called directly (not app.register) so its hooks apply to every route in the app.
+  await authPlugin(app);
+
+  app.get('/api/health', { config: { public: true } }, async () => ({
+    ok: true,
+    name: APP_NAME,
+    version: APP_VERSION,
+  }));
+  await app.register(setupRoutes);
+  await app.register(authRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {

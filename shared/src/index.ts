@@ -6,6 +6,7 @@ export * from './pricing';
 export * from './datetime';
 export * from './enums';
 export * from './permissions';
+export * from './schemas';
 
 export const APP_NAME = 'PC Shop Manager';
 export const APP_VERSION = '0.1.0';
