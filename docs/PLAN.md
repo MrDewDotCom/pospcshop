@@ -1,7 +1,6 @@
 # PC Shop Manager — Plan (Phase 0)
 
-> Status: **Revised after the owner's answers (see §1). Two open questions remain in §1.2 (OQ2, OQ3).
-> Awaiting final approval to start Phase 1.** No application code has been written yet.
+> Status: **Approved. Phase 1 in progress.** All open questions are resolved (see §1.2).
 > Project context: this build is a **demo** for a prospective client. Tax features (VAT, tax invoices)
 > are deferred to a possible paid follow-up.
 
@@ -46,19 +45,19 @@
 | Q12 | Extra dependencies | The list in §3.2 | Approved |
 | — | Language | Communicate with the owner in **English**. App UI stays in **Thai**. Code, identifiers, and comments in English. | Owner |
 
-### 1.2 Open questions
+### 1.2 Resolved open questions
 
-**OQ1 — Resolved: option (a).** See Q2 / OQ1 in §1.1.
+**OQ1 — Staff costs on goods receipts: option (a).** See Q2 / OQ1 in §1.1.
 
-**OQ2 — Build package prices.** ❓
-The original spec gives builds (and quotes) a manual "discount". Following Q6, I propose builds use the same price-reduction model as products:
-- **Recommended:** a build's *regular price* = sum of part prices + assembly fee (computed automatically). The **owner** can set a lower **package price**, and the build shows the same "-X%" badge. Staff can create builds but can't change the package price or the assembly fee (the default fee comes from settings).
-- No manual discount anywhere else (POS bills, quotes).
+**OQ2 — Build package prices: accepted as recommended.** A build's *regular price* = sum of part prices +
+assembly fee (computed automatically). The **owner** can set a lower **package price**, and the build shows the
+same "-X%" badge. Staff can create builds but can't change the package price or the assembly fee (the default
+fee comes from settings). There's no manual discount anywhere else (POS bills, quotes). This replaces the
+original spec's build/quote "discount". It can be revisited at the start of Phase 3.
 
-**OQ3 — Can staff create new products?** ❓
-Q7 lists only images and details as editable by staff. If staff can't create products, a new item that arrives while the owner is away can't be received until the owner creates it.
-- **Recommended:** staff can create a product with non-money fields only (name, category, brand, barcode, specs, images). It starts as **"awaiting price"** and can't be sold until the owner sets the price. After creation, staff can edit only its images and details.
-- Alternative: only the owner creates products.
+**OQ3 — Staff creating products: accepted as recommended.** Staff can create a product with non-money fields
+only (name, category, brand, barcode, specs, images, description). It starts as **"awaiting price"** and can't
+be sold until the owner sets the price. After creation, staff can edit only its images, description, and specs.
 
 ---
 

@@ -20,15 +20,17 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
 - Every user-facing string in the app must be in **Thai**.
 
 ## Current status
-- Phase 0 (planning): PLAN.md revised with the owner's answers (decisions log in PLAN.md §1.1).
-  Open questions OQ2–OQ3 are in PLAN.md §1.2. Awaiting the final go-ahead for Phase 1.
+- Phase 0 (planning): approved. Decisions are in PLAN.md §1.
+- Phase 1: in progress (sub-tasks in PLAN.md §15).
 - This build is a **demo** for a prospective client. Keep scope tight; tax features are deferred.
 
 ## Key product decisions (details in PLAN.md §1)
 - **Stock changes only on payment or an explicit user confirmation** (confirm checkout, goods receipt,
   build assembly, adjustment, restocking a return, void). Carts, build drafts, presets, and quotes never
   touch or reserve stock.
-- **Staff never touch money.** Staff may edit only product images, description, and specs. Selling price,
+- **Staff never touch money.** Staff may create products with non-money fields only (they start as
+  "awaiting price", `price_satang = NULL`, and can't be sold). Afterwards staff may edit only product
+  images, description, and specs. Builds get an owner-set package price instead of a discount. Selling price,
   regular price, cost, and fees are owner-only and change only through dedicated owner endpoints
   (e.g. `PUT /products/:id/pricing`). The staff update schema is `.strict()`.
 - **No manual discounts** (no staff discounts, no POS line/bill discounts). A discount is a product price
