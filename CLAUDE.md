@@ -15,14 +15,26 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
   option than the spec, propose it with reasoning **before** implementing it.
 - **Do not add dependencies** beyond the approved list (PLAN.md §3) without asking first.
 - Make one git commit per sub-task (PLAN.md §15 lists the Phase 1 sub-tasks).
-- Talk to the user in **Thai**. Write code, identifiers, and code comments in **English**.
+- Talk to the user in **English** (changed from Thai at the user's request). Write code, identifiers,
+  and code comments in **English**.
 - Every user-facing string in the app must be in **Thai**.
 
 ## Current status
-- Phase 0 (planning): done, awaiting approval of PLAN.md and answers to its open questions (§1).
+- Phase 0 (planning): PLAN.md revised with the owner's answers (decisions log in PLAN.md §1).
+  Awaiting the final go-ahead for Phase 1.
+- This build is a **demo** for a prospective client. Keep scope tight; tax features are deferred.
+
+## Key product decisions (details in PLAN.md §1)
+- **Stock changes only on payment or an explicit user confirmation** (confirm checkout, goods receipt,
+  build assembly, adjustment, void). Carts, build drafts, presets, and quotes never touch or reserve stock.
+- **Staff may enter costs on goods receipts** (write-only; they can't read them back). Staff receipts are
+  `cost_status='unverified'` until the owner verifies or corrects them. Stock goes in immediately.
+- **No VAT / tax invoices** in this version. Prices are final. Keep VAT addable as one step in `shared/pricing.ts`.
+- **Receipts are online documents** (PNG for LINE/Messenger + A4 PDF). No printing and no thermal layout.
+- Costing: moving weighted average per product; document lines snapshot the cost.
 
 ## Stack
-TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/` (pending approval: PLAN Q11).
+TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
 - web: React + Vite, Tailwind v4, shadcn/ui, TanStack Query, React Hook Form + Zod, react-router,
   Recharts, react-konva (Phase 4), html-to-image + jsPDF, qrcode, promptpay-qr
 - server: Fastify, better-sqlite3 + Drizzle ORM (+ drizzle-kit migrations), Zod via fastify-type-provider-zod
@@ -33,7 +45,7 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/` (pending app
 
 ## Non-negotiable technical rules
 1. **Money = integer satang.** Never use floats for money. Column names end in `_satang`, TS fields end in `Satang`.
-   Rates are basis points (`vat_rate_bp = 700`). Round only via `divRound` in `shared/money.ts`
+   Rates are basis points (`staff_max_discount_bp = 500`). Round only via `divRound` in `shared/money.ts`
    (half-up). Display as baht with thousand separators.
 2. **Snapshots.** Every sale/build/quote line stores the name, SKU, unit price, unit cost, and warranty at
    that moment. Never recompute historical documents from current product data.
@@ -76,7 +88,8 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/` (pending app
 - Enums live in `shared/enums.ts`, and DB enums use text columns with CHECK constraints.
 - IDs are integer autoincrement.
 - Permissions come from `can(role, action)` in `shared/permissions.ts`. Check them on the server; the UI only hides things.
-- Business math (totals, VAT, discounts, profit) lives in `shared/pricing.ts` as pure functions with unit tests.
+- Business math (totals, discounts, profit) lives in `shared/pricing.ts` as pure functions with unit tests.
+- Every stock-changing action in the UI goes through a confirmation dialog that summarizes its stock effect.
 - Compatibility rules (Phase 3) go one per file in `shared/compat/rules/` and are registered in `registry.ts`.
 
 ## Commands
