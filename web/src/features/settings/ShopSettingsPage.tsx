@@ -23,6 +23,7 @@ import { MoneyField, bahtTextSchema } from '@/components/MoneyField';
 import { PageHeader } from '@/components/PageHeader';
 import { TextAreaField, TextField } from '@/components/TextField';
 import { errorMessage, validationIssues } from '@/lib/api';
+import { LogoUploader } from './LogoUploader';
 import { useShopSettings, useUpdateSettings } from './queries';
 
 const formSchema = shopInfoInputSchema.extend({
@@ -140,9 +141,6 @@ function SettingsForm({ settings }: { settings: OwnerShopSettings }) {
               />
             </div>
           </FieldGroup>
-          <p className="mt-4 text-sm text-muted-foreground">
-            โลโก้ร้านจะเพิ่มได้ในขั้นตอนถัดไปของการพัฒนา (อัปโหลดรูป)
-          </p>
         </CardContent>
       </Card>
 
@@ -206,7 +204,20 @@ export function ShopSettingsPage() {
       <PageHeader title="ข้อมูลร้าน" />
       {isPending && <p className="text-muted-foreground">กำลังโหลด…</p>}
       {error && <p className="text-destructive">{errorMessage(error)}</p>}
-      {data && 'defaultAssemblyFeeSatang' in data && <SettingsForm settings={data} />}
+      {data && 'defaultAssemblyFeeSatang' in data && (
+        <div className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>โลโก้ร้าน</CardTitle>
+              <CardDescription>แสดงบนใบเสร็จ ใบเสนอราคา และภาพโพสต์ขาย</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LogoUploader logoUrl={data.logoUrl} />
+            </CardContent>
+          </Card>
+          <SettingsForm settings={data} />
+        </div>
+      )}
     </div>
   );
 }

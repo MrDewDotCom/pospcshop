@@ -18,17 +18,19 @@ export class ApiError extends Error {
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 async function request<T>(method: Method, url: string, body?: unknown): Promise<T> {
+  const isForm = body instanceof FormData;
   let response: Response;
   try {
     response = await fetch(url, {
       method,
       credentials: 'same-origin',
       headers: {
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        // FormData sets its own multipart Content-Type (with the boundary).
+        ...(body !== undefined && !isForm && { 'Content-Type': 'application/json' }),
         // Required by the server on every state-changing request (CSRF guard).
         ...(method !== 'GET' && { 'X-PCShop': '1' }),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(
@@ -58,6 +60,7 @@ export const api = {
   put: <T>(url: string, body: unknown = {}) => request<T>('PUT', url, body),
   patch: <T>(url: string, body: unknown = {}) => request<T>('PATCH', url, body),
   delete: <T>(url: string) => request<T>('DELETE', url),
+  upload: <T>(url: string, form: FormData) => request<T>('POST', url, form),
 };
 
 /** Field-level issues from a VALIDATION_ERROR response, keyed by dotted path ("owner.username"). */
