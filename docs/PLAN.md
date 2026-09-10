@@ -125,6 +125,10 @@ html-to-image, jsPDF, Vitest, @fontsource (Thai fonts)
 - `@vitejs/plugin-react`, `@eslint/js`, and the `@types/*` packages are standard parts of React + Vite, ESLint,
   and TypeScript.
 - The UI font is `@fontsource/ibm-plex-sans-thai`. The document font (Sarabun) will be added in Phase 2.
+- Drizzle uses the stable releases (`drizzle-orm` 0.45, `drizzle-kit` 0.31), not the 1.0 release candidates.
+  `npm audit` flags an old esbuild copy inside drizzle-kit. It's a dev-only tool and the advisory concerns
+  esbuild's dev server, so it doesn't affect the shipped app (`npm audit --omit=dev` is clean).
+- better-sqlite3 13 installs from a prebuilt binary on Windows + Node 24 (bundled SQLite 3.53).
 
 **I'll ask again when we reach the relevant phase:** `electron`, `electron-builder`, `@electron/rebuild`
 (Phase 7), and extra post fonts such as Kanit or Prompt via @fontsource (Phase 4).

@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app';
+import { createTestApp } from './helpers';
 
 describe('health endpoint', async () => {
-  const app = await buildApp();
+  const app = await createTestApp();
   afterAll(() => app.close());
 
   it('reports ok', async () => {

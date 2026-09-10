@@ -3,8 +3,20 @@ import path from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { APP_NAME, APP_VERSION } from '@pcshop/shared';
+import type { DataPaths } from './config';
+import type { DatabaseManager } from './db/client';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    database: DatabaseManager;
+    /** Data directory layout. Undefined in tests that don't touch the file system. */
+    paths: DataPaths | undefined;
+  }
+}
 
 export interface AppOptions {
+  database: DatabaseManager;
+  paths?: DataPaths;
   /** Absolute path to the built web app (web/dist). When null, the frontend is served by Vite (dev). */
   webDistDir?: string | null;
   logger?: boolean;
@@ -15,8 +27,10 @@ export interface StartOptions extends AppOptions {
   port?: number;
 }
 
-export async function buildApp(options: AppOptions = {}): Promise<FastifyInstance> {
+export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false });
+  app.decorate('database', options.database);
+  app.decorate('paths', options.paths);
 
   app.get('/api/health', async () => ({ ok: true, name: APP_NAME, version: APP_VERSION }));
 
@@ -40,7 +54,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
 }
 
 /** Entry point shared by the CLI (main.ts) and, later, the Electron main process. */
-export async function startServer(options: StartOptions = {}): Promise<FastifyInstance> {
+export async function startServer(options: StartOptions): Promise<FastifyInstance> {
   const app = await buildApp(options);
   await app.listen({ host: options.host ?? '0.0.0.0', port: options.port ?? 3300 });
   return app;

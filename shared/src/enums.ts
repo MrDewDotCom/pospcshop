@@ -115,6 +115,10 @@ export const COST_STATUS_LABELS: Record<CostStatus, string> = {
   verified: 'ตรวจสอบแล้ว',
 };
 
+/** Where a goods-receipt line's cost came from: typed on the receipt, or the product's average (left blank). */
+export const COST_SOURCES = ['entered', 'average'] as const;
+export type CostSource = (typeof COST_SOURCES)[number];
+
 export const DOC_TYPES = [
   'sale',
   'return',
