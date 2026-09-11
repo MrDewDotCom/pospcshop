@@ -19,7 +19,7 @@ export function HomePage() {
         <CardHeader>
           <CardTitle>ระบบพร้อมใช้งาน</CardTitle>
           <CardDescription>
-            เมนูจัดการสินค้า รับสินค้าเข้า และสต็อก จะเพิ่มเข้ามาเร็ว ๆ นี้
+            จัดการสินค้าได้ที่เมนู “สินค้า” ส่วนรับสินค้าเข้าและสต็อกจะเพิ่มเข้ามาเร็ว ๆ นี้
           </CardDescription>
         </CardHeader>
       </Card>

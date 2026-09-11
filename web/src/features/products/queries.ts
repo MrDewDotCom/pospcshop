@@ -1,0 +1,104 @@
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  CreateProductInput,
+  ListProductsQuery,
+  Paginated,
+  PriceHistoryEntry,
+  Product,
+  ProductListItem,
+  ProductLookupResponse,
+  ProductPricingInput,
+  UpdateProductInput,
+} from '@pcshop/shared';
+import { ApiError, api } from '@/lib/api';
+
+const productsKey = ['products'] as const;
+
+function toSearchParams(query: ListProductsQuery): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== '' && value !== null) params.set(key, String(value));
+  }
+  return params.toString();
+}
+
+export function useProducts(query: ListProductsQuery) {
+  return useQuery({
+    queryKey: [...productsKey, 'list', query],
+    queryFn: () => api.get<Paginated<ProductListItem>>(`/api/products?${toSearchParams(query)}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useProduct(id: number) {
+  return useQuery({
+    queryKey: [...productsKey, 'detail', id],
+    queryFn: () => api.get<Product>(`/api/products/${id}`),
+  });
+}
+
+export function usePriceHistory(id: number) {
+  return useQuery({
+    queryKey: [...productsKey, 'detail', id, 'price-history'],
+    queryFn: () =>
+      api
+        .get<{ items: PriceHistoryEntry[] }>(`/api/products/${id}/price-history`)
+        .then((r) => r.items),
+  });
+}
+
+/**
+ * Exact barcode/SKU/serial lookup for scanners (the server also fixes codes typed with the Thai
+ * keyboard layout). Resolves to null when nothing matches.
+ */
+export async function lookupProductCode(code: string): Promise<ProductLookupResponse | null> {
+  try {
+    return await api.get<ProductLookupResponse>(
+      `/api/products/lookup?code=${encodeURIComponent(code)}`,
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Every product mutation refreshes the product lists and details (and category counts). */
+function useProductMutation<T>(mutationFn: (input: T) => Promise<Product>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: async (product) => {
+      queryClient.setQueryData([...productsKey, 'detail', product.id], product);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: productsKey }),
+        queryClient.invalidateQueries({ queryKey: ['categories'] }),
+      ]);
+    },
+  });
+}
+
+export const useCreateProduct = () =>
+  useProductMutation((input: CreateProductInput) => api.post<Product>('/api/products', input));
+
+export const useUpdateProduct = () =>
+  useProductMutation(({ id, ...input }: UpdateProductInput & { id: number }) =>
+    api.patch<Product>(`/api/products/${id}`, input),
+  );
+
+export const useSetProductImages = () =>
+  useProductMutation(({ id, fileIds }: { id: number; fileIds: number[] }) =>
+    api.put<Product>(`/api/products/${id}/images`, { fileIds }),
+  );
+
+export const useSetProductPricing = () =>
+  useProductMutation(({ id, ...input }: ProductPricingInput & { id: number }) =>
+    api.put<Product>(`/api/products/${id}/pricing`, input),
+  );
+
+export const useEndDiscount = () =>
+  useProductMutation((id: number) => api.post<Product>(`/api/products/${id}/pricing/end-discount`));
+
+export const useArchiveProduct = () =>
+  useProductMutation(({ id, archived }: { id: number; archived: boolean }) =>
+    api.post<Product>(`/api/products/${id}/${archived ? 'archive' : 'unarchive'}`),
+  );

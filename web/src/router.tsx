@@ -7,6 +7,9 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { RecoverPage } from '@/features/auth/RecoverPage';
 import { HomePage } from '@/features/home/HomePage';
 import { NotFoundPage } from '@/features/home/NotFoundPage';
+import { ProductDetailPage } from '@/features/products/ProductDetailPage';
+import { ProductCreatePage, ProductEditPage } from '@/features/products/ProductFormPage';
+import { ProductsPage } from '@/features/products/ProductsPage';
 import { NumberingPage } from '@/features/settings/NumberingPage';
 import { PhoneAccessPage } from '@/features/settings/PhoneAccess';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
@@ -35,6 +38,10 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <HomePage /> },
               { path: 'account', element: <AccountPage /> },
+              { path: 'products', element: <ProductsPage /> },
+              { path: 'products/new', element: <ProductCreatePage /> },
+              { path: 'products/:id', element: <ProductDetailPage /> },
+              { path: 'products/:id/edit', element: <ProductEditPage /> },
               { path: 'categories', element: <CategoriesPage /> },
               {
                 path: 'settings',

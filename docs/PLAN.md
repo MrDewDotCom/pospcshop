@@ -718,7 +718,7 @@ sold ──warranty claim (Phase 5)──→ in_claim → sold (same unit back) 
 2. Routes respond via `respondByRole(req, { owner, staff }, data)`, which `parse`s with the role's schema. Zod strips unknown keys, so **forgetting a field in a schema means it isn't sent**, which is the safe failure.
 3. Forbidden keys are listed in `shared/permissions.ts`: `costSatang`, `unitCostSatang`, `totalCostSatang`, `lineCostSatang`, `profitSatang`, `marginBp`, `inventoryValueSatang` …
 4. **Integration test:** seed every entity type → log in as staff → call every registered GET route (enumerated from Fastify automatically) → recursively scan each JSON response for forbidden keys. A new route that fails means the build fails.
-5. **Money fields on input (Q7):** product money fields exist only in the owner-only pricing endpoint. The staff product-update schema is `.strict()` and contains only `description` and `specs`, so any other key is rejected with 403. There are tests for this.
+5. **Money fields on input (Q7):** product money fields exist only in the owner-only pricing endpoint. The product-update schema is `.strict()` and has no money keys at all, so `priceSatang`/`costSatang`/… are rejected with 400 for everyone; a staff update that touches an owner-only field (name, SKU, warranty, …) is rejected with 403 `FORBIDDEN_FIELDS`. Staff may send only `description` and `specs`. There are tests for this.
 6. Indirect leaks to close: sorting/filtering by cost, the dashboard, stock movement history, goods-receipt details, backup downloads (all owner-only), post data (selling/regular price only), error messages, and the cost-review status (staff may see "unverified" but never the values)
 
 ---
@@ -731,52 +731,53 @@ lists return `{ items, total }` and accept `?page=&pageSize=&q=`.
 
 ### Phase 1
 
-| Method         | Path                                          | Notes                                                                               |
-| -------------- | --------------------------------------------- | ----------------------------------------------------------------------------------- |
-| GET            | /setup/status                                 | public: `{ needsSetup, shopName }` (the login page shows the shop name)             |
-| POST           | /setup                                        | create owner + shop info + optional seed; returns recovery code                     |
-| POST           | /auth/login · /auth/logout                    | login: 5 failures / 5 min per username+IP → 429                                     |
-| GET            | /auth/me                                      | user + permissions                                                                  |
-| POST           | /auth/change-password                         | signs out the user's other sessions                                                 |
-| POST           | /auth/recover                                 | public: owner username + recovery code + new password → returns a new recovery code |
-| GET/POST       | /users 🔒                                     |                                                                                     |
-| PATCH          | /users/:id 🔒                                 | name, role, active                                                                  |
-| POST           | /users/:id/reset-password 🔒                  |                                                                                     |
-| GET            | /settings                                     | staff get the subset they need (shop name, PromptPay …)                             |
-| PATCH          | /settings 🔒                                  |                                                                                     |
-| GET/PATCH      | /settings/sequences 🔒                        | document number formats                                                             |
-| GET            | /system/network                               | LAN URLs (QR is rendered on the client)                                             |
-| GET            | /system/info 🔒                               | version, data dir                                                                   |
-| POST           | /files                                        | upload (multipart: image + thumb)                                                   |
-| GET            | /uploads/:path                                | session required                                                                    |
-| GET/POST/PATCH | /categories · /categories/:id                 | POST/PATCH 🔒                                                                       |
-| POST           | /categories/:id/archive 🔒                    |                                                                                     |
-| GET/POST/PATCH | /tags · /tags/:id                             | POST/PATCH 🔒                                                                       |
-| GET            | /products (c)                                 | `q`, `categoryId`, `condition`, `tagId`, `discounted`, `stock=low\|out\|in`, `sort` |
-| GET            | /products/lookup?code= (c)                    | exact barcode/SKU/serial match (scanners)                                           |
-| GET            | /products/:id (c)                             | includes derived tags                                                               |
-| POST           | /products                                     | staff: non-money fields only (OQ3); owner may include an initial `pricing` object   |
-| PATCH          | /products/:id                                 | owner: all non-money fields; staff: `description`, `specs` only (strict)            |
-| PUT            | /products/:id/pricing 🔒                      | `{ priceSatang, regularPriceSatang? , costSatang? }` + "end discount" rules (§7.3)  |
-| GET            | /products/:id/price-history                   |                                                                                     |
-| PUT            | /products/:id/images                          | image order (staff allowed)                                                         |
-| PUT            | /products/:id/tags 🔒                         |                                                                                     |
-| POST           | /products/:id/archive 🔒                      |                                                                                     |
-| GET            | /products/:id/movements (c)                   |                                                                                     |
-| GET            | /products/:id/serials (c)                     |                                                                                     |
-| GET/POST/PATCH | /suppliers · /suppliers/:id                   |                                                                                     |
-| GET            | /goods-receipts (c) · /goods-receipts/:id (c) | filter `costStatus=unverified` 🔒                                                   |
-| POST           | /goods-receipts                               | confirm receipt → stock in immediately; `cost_status` depends on role               |
-| POST           | /goods-receipts/:id/verify-costs 🔒           | `{ lines: [{ itemId, unitCostSatang }] }` confirm/correct                           |
-| POST           | /goods-receipts/:id/void 🔒                   |                                                                                     |
-| POST           | /stock/adjustments 🔒                         | reason required; serials required for serial products                               |
-| GET            | /stock/movements (c)                          | filter by product, type, date range                                                 |
-| GET            | /stock/integrity 🔒                           |                                                                                     |
-| GET            | /serials?q= (c)                               | serial search                                                                       |
-| GET/POST       | /backups 🔒                                   | list / back up now                                                                  |
-| POST           | /backups/restore 🔒                           | `{ backupId }` or `{ path }`                                                        |
-| POST           | /seed/clear 🔒                                | only before any sale exists                                                         |
-| GET            | /audit-logs 🔒                                |                                                                                     |
+| Method         | Path                                          | Notes                                                                                                                                                                                 |
+| -------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET            | /setup/status                                 | public: `{ needsSetup, shopName }` (the login page shows the shop name)                                                                                                               |
+| POST           | /setup                                        | create owner + shop info + optional seed; returns recovery code                                                                                                                       |
+| POST           | /auth/login · /auth/logout                    | login: 5 failures / 5 min per username+IP → 429                                                                                                                                       |
+| GET            | /auth/me                                      | user + permissions                                                                                                                                                                    |
+| POST           | /auth/change-password                         | signs out the user's other sessions                                                                                                                                                   |
+| POST           | /auth/recover                                 | public: owner username + recovery code + new password → returns a new recovery code                                                                                                   |
+| GET/POST       | /users 🔒                                     |                                                                                                                                                                                       |
+| PATCH          | /users/:id 🔒                                 | name, role, active                                                                                                                                                                    |
+| POST           | /users/:id/reset-password 🔒                  |                                                                                                                                                                                       |
+| GET            | /settings                                     | staff get the subset they need (shop name, PromptPay …)                                                                                                                               |
+| PATCH          | /settings 🔒                                  |                                                                                                                                                                                       |
+| GET/PATCH      | /settings/sequences 🔒                        | document number formats                                                                                                                                                               |
+| GET            | /system/network                               | LAN URLs (QR is rendered on the client)                                                                                                                                               |
+| GET            | /system/info 🔒                               | version, data dir                                                                                                                                                                     |
+| POST           | /files                                        | upload (multipart: image + thumb)                                                                                                                                                     |
+| GET            | /uploads/:path                                | session required                                                                                                                                                                      |
+| GET/POST/PATCH | /categories · /categories/:id                 | POST/PATCH 🔒                                                                                                                                                                         |
+| POST           | /categories/:id/archive 🔒                    |                                                                                                                                                                                       |
+| GET/POST/PATCH | /tags · /tags/:id                             | POST/PATCH 🔒                                                                                                                                                                         |
+| GET            | /products (c)                                 | `q`, `categoryId`, `condition`, `tagId`, `discounted`, `stock=low\|out\|in`, `sort`, `status=active\|awaitingPrice\|archived` (`low` = 0 < on hand ≤ min, so it never overlaps `out`) |
+| GET            | /products/lookup?code= (c)                    | exact barcode/SKU/serial match (scanners)                                                                                                                                             |
+| GET            | /products/:id (c)                             | includes derived tags                                                                                                                                                                 |
+| POST           | /products                                     | staff: non-money fields only (OQ3); owner may include an initial `pricing` object                                                                                                     |
+| PATCH          | /products/:id                                 | owner: all non-money fields; staff: `description`, `specs` only (strict)                                                                                                              |
+| PUT            | /products/:id/pricing 🔒                      | `{ priceSatang, regularPriceSatang? , costSatang? }` + "end discount" rules (§7.3)                                                                                                    |
+| POST           | /products/:id/pricing/end-discount 🔒         | selling price = regular price, regular price cleared                                                                                                                                  |
+| GET            | /products/:id/price-history                   |                                                                                                                                                                                       |
+| PUT            | /products/:id/images                          | image order (staff allowed)                                                                                                                                                           |
+| PUT            | /products/:id/tags 🔒                         |                                                                                                                                                                                       |
+| POST           | /products/:id/archive · /unarchive 🔒         | archive only when on hand = 0                                                                                                                                                         |
+| GET            | /products/:id/movements (c)                   |                                                                                                                                                                                       |
+| GET            | /products/:id/serials (c)                     |                                                                                                                                                                                       |
+| GET/POST/PATCH | /suppliers · /suppliers/:id                   |                                                                                                                                                                                       |
+| GET            | /goods-receipts (c) · /goods-receipts/:id (c) | filter `costStatus=unverified` 🔒                                                                                                                                                     |
+| POST           | /goods-receipts                               | confirm receipt → stock in immediately; `cost_status` depends on role                                                                                                                 |
+| POST           | /goods-receipts/:id/verify-costs 🔒           | `{ lines: [{ itemId, unitCostSatang }] }` confirm/correct                                                                                                                             |
+| POST           | /goods-receipts/:id/void 🔒                   |                                                                                                                                                                                       |
+| POST           | /stock/adjustments 🔒                         | reason required; serials required for serial products                                                                                                                                 |
+| GET            | /stock/movements (c)                          | filter by product, type, date range                                                                                                                                                   |
+| GET            | /stock/integrity 🔒                           |                                                                                                                                                                                       |
+| GET            | /serials?q= (c)                               | serial search                                                                                                                                                                         |
+| GET/POST       | /backups 🔒                                   | list / back up now                                                                                                                                                                    |
+| POST           | /backups/restore 🔒                           | `{ backupId }` or `{ path }`                                                                                                                                                          |
+| POST           | /seed/clear 🔒                                | only before any sale exists                                                                                                                                                           |
+| GET            | /audit-logs 🔒                                |                                                                                                                                                                                       |
 
 ### Phase 2
 

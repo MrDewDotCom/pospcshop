@@ -6,6 +6,7 @@ export * from './users';
 export * from './settings';
 export * from './files';
 export * from './categories';
+export * from './products';
 
 /** Shape of every API error response. */
 export interface ApiErrorBody {
