@@ -8,11 +8,19 @@ import {
   goodsReceiptStaffSchema,
   idParamSchema,
   listGoodsReceiptsQuerySchema,
+  verifyGoodsReceiptCostsInputSchema,
+  voidInputSchema,
 } from '@pcshop/shared';
 import { respondByRole } from '../../lib/respondByRole';
 import type { ZodTypeProvider } from '../../lib/zod';
 import { requirePermission } from '../../plugins/auth';
-import { createGoodsReceipt, getGoodsReceipt, listGoodsReceipts } from './service';
+import {
+  createGoodsReceipt,
+  getGoodsReceipt,
+  listGoodsReceipts,
+  verifyGoodsReceiptCosts,
+  voidGoodsReceipt,
+} from './service';
 
 // Staff schemas have no cost fields: staff may type costs when receiving but never read them back.
 const detailSchemas = { owner: goodsReceiptOwnerSchema, staff: goodsReceiptStaffSchema };
@@ -52,5 +60,24 @@ export async function goodsReceiptRoutes(app: FastifyInstance): Promise<void> {
             createGoodsReceipt(db(), request.user!, request.body),
           ),
         ),
+  );
+
+  r.post(
+    '/api/goods-receipts/:id/verify-costs',
+    {
+      preHandler: requirePermission('goodsReceipt.verifyCost'),
+      schema: { params: idParamSchema, body: verifyGoodsReceiptCostsInputSchema },
+    },
+    async (request) =>
+      verifyGoodsReceiptCosts(db(), request.user!, request.params.id, request.body),
+  );
+
+  r.post(
+    '/api/goods-receipts/:id/void',
+    {
+      preHandler: requirePermission('goodsReceipt.void'),
+      schema: { params: idParamSchema, body: voidInputSchema },
+    },
+    async (request) => voidGoodsReceipt(db(), request.user!, request.params.id, request.body),
   );
 }

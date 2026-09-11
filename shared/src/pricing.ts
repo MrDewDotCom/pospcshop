@@ -99,3 +99,44 @@ export function movingAverageCost(
   if (onHand <= 0) return unitCostSatang;
   return divRound(onHand * averageSatang + qty * unitCostSatang, onHand + qty);
 }
+
+/**
+ * The average after the owner corrects a receipt line's provisional cost (owner decision, sub-task 12):
+ * only units of that line that can still be on hand — min(onHand, qty) — absorb the difference. Units
+ * already sold keep their sale's cost snapshot. Never below 0; unchanged when nothing is on hand.
+ */
+export function correctedAverageCost(
+  onHand: number,
+  averageSatang: number,
+  receivedQty: number,
+  provisionalCostSatang: number,
+  finalCostSatang: number,
+): number {
+  assertSatang(averageSatang, 'averageSatang');
+  assertSatang(provisionalCostSatang, 'provisionalCostSatang');
+  assertSatang(finalCostSatang, 'finalCostSatang');
+  if (onHand <= 0) return averageSatang;
+  const affected = Math.min(onHand, receivedQty);
+  const value = onHand * averageSatang + affected * (finalCostSatang - provisionalCostSatang);
+  return Math.max(0, divRound(value, onHand));
+}
+
+/**
+ * The average after taking `qty` units at `unitCostSatang` back out (voiding a receipt). Returns null
+ * when the result isn't meaningful — nothing left on hand, or a negative remaining value — in which case
+ * the caller keeps the current average.
+ */
+export function averageAfterRemoval(
+  onHand: number,
+  averageSatang: number,
+  qty: number,
+  unitCostSatang: number,
+): number | null {
+  assertSatang(averageSatang, 'averageSatang');
+  assertSatang(unitCostSatang, 'unitCostSatang');
+  const remaining = onHand - qty;
+  if (remaining <= 0) return null;
+  const value = onHand * averageSatang - qty * unitCostSatang;
+  if (value < 0) return null;
+  return divRound(value, remaining);
+}

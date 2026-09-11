@@ -577,10 +577,16 @@ erDiagram
 
 - On receipt: `newAvg = divRound(onHand × avg + qty × unitCost, onHand + qty)`. If `onHand ≤ 0`, `newAvg = unitCost`.
 - **Staff receipts:** quantities and serials go into stock immediately, and the average cost is updated **provisionally** with the staff-entered cost. The receipt is `cost_status = 'unverified'`. If staff leave a line's cost empty, that line uses the product's current average as its provisional cost.
-- **Owner review:** the owner confirms the receipt or corrects line costs. For each changed line:
-  `delta = qty × (finalCost − provisionalCost)`. If the product's `onHand > 0`: `avg = max(0, divRound(onHand × avg + delta, onHand))`. Serial items from that line get the final `unit_cost_satang`.
+- **Owner review:** the owner confirms the receipt or corrects line costs (every line, once; only while unverified). For each changed line,
+  **only the units that can still be on hand absorb the difference** (owner decision, sub-task 12):
+  `delta = min(onHand, qty) × (finalCost − provisionalCost)`. If the product's `onHand > 0`: `avg = max(0, divRound(onHand × avg + delta, onHand))` (`correctedAverageCost`).
+  This keeps the average equal to what a remaining unit really cost; the original "whole difference" formula could inflate the
+  last few units badly (100 received, 99 sold → the last unit absorbs 99 corrections). Serial items from that line get the final `unit_cost_satang`.
   Sales made between receipt and review keep their provisional cost snapshot (a document snapshot is never rewritten), and the audit log records the before and after values. Then `cost_status = 'verified'`.
-- Voiding a receipt reverses the average when the result is sensible, otherwise it keeps the current average and logs it.
+- **Void (owner, reason required):** only while all stock from the receipt is still here (serials `in_stock`, `onHand ≥ qty`). Stock goes out
+  as `void` movements; serial units become `returned_to_supplier`, and a later receipt of the same serial reuses that row (so a mistaken
+  receipt can be voided and re-entered). The average is reversed with `averageAfterRemoval` when stock remains and the value stays ≥ 0,
+  otherwise the current average is kept; the audit log records which. A receipt has at most one line per product.
 - Sale, build, and quote lines snapshot `unit_cost_satang` = the average at that time.
 
 ### 7.3 Pricing and discount badges (`shared/pricing.ts`, pure functions with unit tests)

@@ -104,6 +104,23 @@ export const createGoodsReceiptInputSchema = z.object({
 });
 export type CreateGoodsReceiptInput = z.input<typeof createGoodsReceiptInputSchema>;
 
+/** Owner confirms or corrects the unit cost of every line of an unverified receipt. */
+export const verifyGoodsReceiptCostsInputSchema = z.object({
+  lines: z
+    .array(
+      z.object({
+        itemId: z.number().int().positive(),
+        unitCostSatang: z
+          .number()
+          .int()
+          .min(0, { error: 'ต้นทุนต้องไม่ติดลบ' })
+          .max(100_000_000_00),
+      }),
+    )
+    .min(1),
+});
+export type VerifyGoodsReceiptCostsInput = z.input<typeof verifyGoodsReceiptCostsInputSchema>;
+
 export const listGoodsReceiptsQuerySchema = paginationQuerySchema.extend({
   q: z.string().trim().max(100).optional(),
   supplierId: z.coerce.number().int().positive().optional(),

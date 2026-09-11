@@ -16,5 +16,15 @@ export interface Paginated<T> {
 /** `/:id` route parameter. */
 export const idParamSchema = z.object({ id: z.coerce.number().int().positive() });
 
+/** Voiding any financial document requires a reason (it goes into the document and the audit log). */
+export const voidInputSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, { error: 'กรุณาระบุเหตุผลที่ยกเลิก' })
+    .max(500, { error: 'เหตุผลยาวเกินไป' }),
+});
+export type VoidInput = z.input<typeof voidInputSchema>;
+
 /** ISO-8601 UTC timestamp as sent by the API (the DB stores epoch milliseconds). */
 export const isoDateTimeSchema = z.string();

@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Ban } from 'lucide-react';
 import { SERIAL_STATUS_LABELS, type GoodsReceiptLine } from '@pcshop/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { formatMoney, useFormat } from '@/lib/format';
 import { useCurrentUser } from '@/features/auth/queries';
 import { CostStatusBadge, VoidedBadge } from './CostStatusBadge';
 import { useGoodsReceipt } from './queries';
+import { VerifyCostsDialog, VoidReceiptDialog } from './ReceiptOwnerDialogs';
 
 function Info({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -58,9 +59,11 @@ export function ReceivingDetailPage() {
   const showCost = user.can('cost.view');
   const format = useFormat();
   const { data: receipt, isPending, error } = useGoodsReceipt(id);
+  const [dialog, setDialog] = useState<'verify' | 'void' | null>(null);
 
   if (isPending) return <p className="text-muted-foreground">กำลังโหลด…</p>;
   if (error || !receipt) return <p className="text-destructive">{errorMessage(error)}</p>;
+  const posted = receipt.status === 'posted';
 
   return (
     <div className="max-w-5xl">
@@ -71,12 +74,30 @@ export function ReceivingDetailPage() {
         </Link>
       </Button>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h1 className="text-2xl font-semibold">ใบรับสินค้า {receipt.docNo}</h1>
-        {receipt.status === 'voided' ? (
-          <VoidedBadge />
-        ) : (
-          <CostStatusBadge status={receipt.costStatus} />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold">ใบรับสินค้า {receipt.docNo}</h1>
+          {receipt.status === 'voided' ? (
+            <VoidedBadge />
+          ) : (
+            <CostStatusBadge status={receipt.costStatus} />
+          )}
+        </div>
+        {posted && (
+          <div className="flex flex-wrap gap-2">
+            {user.can('goodsReceipt.void') && (
+              <Button variant="outline" onClick={() => setDialog('void')}>
+                <Ban />
+                ยกเลิกใบรับสินค้า
+              </Button>
+            )}
+            {receipt.costStatus === 'unverified' && user.can('goodsReceipt.verifyCost') && (
+              <Button onClick={() => setDialog('verify')}>
+                <BadgeCheck />
+                ตรวจสอบต้นทุน
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -172,6 +193,11 @@ export function ReceivingDetailPage() {
           </TableFooter>
         </Table>
       </div>
+
+      {dialog === 'verify' && (
+        <VerifyCostsDialog receipt={receipt} onClose={() => setDialog(null)} />
+      )}
+      {dialog === 'void' && <VoidReceiptDialog receipt={receipt} onClose={() => setDialog(null)} />}
     </div>
   );
 }

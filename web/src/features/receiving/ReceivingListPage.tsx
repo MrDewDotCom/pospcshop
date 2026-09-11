@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { PackagePlus, Search } from 'lucide-react';
 import { cn } from 'cn';
 import type { CostStatus } from '@pcshop/shared';
@@ -37,11 +37,17 @@ export function ReceivingListPage() {
   const navigate = useNavigate();
   const format = useFormat();
   const [q, setQ] = useState('');
-  const [costStatus, setCostStatus] = useState<CostStatus | typeof ALL>(ALL);
+  // In the URL so the home page can link to "awaiting review".
+  const [params, setParams] = useSearchParams();
+  const costStatus = (params.get('costStatus') as CostStatus | null) ?? ALL;
+  const setCostStatus = (value: CostStatus | typeof ALL) =>
+    setParams(value === ALL ? {} : { costStatus: value }, { replace: true });
   const [page, setPage] = useState(1);
   const { data, isPending, error, isPlaceholderData } = useGoodsReceipts({
     q: q.trim() || undefined,
     costStatus: costStatus === ALL ? undefined : costStatus,
+    // Voided receipts don't need a review.
+    status: costStatus === 'unverified' ? 'posted' : undefined,
     page,
     pageSize: PAGE_SIZE,
   });

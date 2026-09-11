@@ -5,6 +5,8 @@ import type {
   GoodsReceiptListItem,
   ListGoodsReceiptsQuery,
   Paginated,
+  VerifyGoodsReceiptCostsInput,
+  VoidInput,
 } from '@pcshop/shared';
 import { api } from '@/lib/api';
 
@@ -29,12 +31,11 @@ export function useGoodsReceipt(id: number) {
   });
 }
 
-/** Receiving changes stock and average costs, so product data is refreshed too. */
-export function useCreateGoodsReceipt() {
+/** Receipts change stock and average costs, so product data is refreshed too. */
+function useReceiptMutation<T>(mutationFn: (input: T) => Promise<GoodsReceipt>) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateGoodsReceiptInput) =>
-      api.post<GoodsReceipt>('/api/goods-receipts', input),
+    mutationFn,
     onSuccess: async (receipt) => {
       queryClient.setQueryData([...receiptsKey, 'detail', receipt.id], receipt);
       await Promise.all([
@@ -42,5 +43,34 @@ export function useCreateGoodsReceipt() {
         queryClient.invalidateQueries({ queryKey: ['products'] }),
       ]);
     },
+  });
+}
+
+export const useCreateGoodsReceipt = () =>
+  useReceiptMutation((input: CreateGoodsReceiptInput) =>
+    api.post<GoodsReceipt>('/api/goods-receipts', input),
+  );
+
+export const useVerifyReceiptCosts = () =>
+  useReceiptMutation(({ id, ...input }: VerifyGoodsReceiptCostsInput & { id: number }) =>
+    api.post<GoodsReceipt>(`/api/goods-receipts/${id}/verify-costs`, input),
+  );
+
+export const useVoidReceipt = () =>
+  useReceiptMutation(({ id, ...input }: VoidInput & { id: number }) =>
+    api.post<GoodsReceipt>(`/api/goods-receipts/${id}/void`, input),
+  );
+
+/** How many receipts wait for the owner's cost review (home page badge). */
+export function useUnverifiedReceiptCount(enabled: boolean) {
+  return useQuery({
+    queryKey: [...receiptsKey, 'list', 'unverified-count'],
+    queryFn: () =>
+      api
+        .get<Paginated<GoodsReceiptListItem>>(
+          '/api/goods-receipts?costStatus=unverified&status=posted&pageSize=1',
+        )
+        .then((r) => r.total),
+    enabled,
   });
 }

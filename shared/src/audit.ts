@@ -30,6 +30,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'supplier.archive': 'ซ่อนผู้จำหน่าย',
   'supplier.unarchive': 'แสดงผู้จำหน่ายอีกครั้ง',
   'goods_receipt.create': 'รับสินค้าเข้า',
+  'goods_receipt.cost_verify': 'ตรวจสอบ/แก้ไขต้นทุนใบรับสินค้า',
+  'goods_receipt.void': 'ยกเลิกใบรับสินค้า',
 };
 
 export function auditActionLabel(action: string): string {

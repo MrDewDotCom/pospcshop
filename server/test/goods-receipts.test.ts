@@ -106,14 +106,18 @@ describe('receiving goods', () => {
     const { owner } = await setUpShop(app);
     const { staff } = await createStaff(owner);
     const ram = await newProduct(owner);
+    const ssd = await newProduct(owner, { name: 'Samsung 990 Pro 1TB' });
     await owner.post('/api/goods-receipts', {
-      lines: [{ productId: ram, qty: 2, unitCostSatang: 100_000 }],
+      lines: [
+        { productId: ram, qty: 2, unitCostSatang: 100_000 },
+        { productId: ssd, qty: 1, unitCostSatang: 300_000 },
+      ],
     });
 
     const res = await staff.post('/api/goods-receipts', {
       lines: [
         { productId: ram, qty: 2, unitCostSatang: 140_000 },
-        { productId: ram, qty: 1 }, // blank cost → the current average
+        { productId: ssd, qty: 1 }, // blank cost → the current average
       ],
     });
     expect(res.statusCode).toBe(201);
@@ -126,16 +130,24 @@ describe('receiving goods', () => {
     expect(findForbiddenKeys(seenByStaff)).toEqual([]);
     expect(findForbiddenKeys((await staff.get('/api/goods-receipts')).json())).toEqual([]);
 
-    // Stock goes in immediately; the average moves provisionally: (2×1000 + 2×1400) / 4 = 1200,
-    // then the blank line adds 1 unit at 1200 → 1200.
-    expect(productRow(ram)).toMatchObject({ onHand: 5, costSatang: 120_000 });
+    // Stock goes in immediately; the average moves provisionally: (2×1000 + 2×1400) / 4 = 1200.
+    expect(productRow(ram)).toMatchObject({ onHand: 4, costSatang: 120_000 });
+    expect(productRow(ssd)).toMatchObject({ onHand: 2, costSatang: 300_000 });
 
     const seenByOwner = (await owner.get(`/api/goods-receipts/${receipt.id}`)).json();
     expect(seenByOwner.lines).toMatchObject([
       { unitCostSatang: 140_000, costSource: 'entered', lineTotalSatang: 280_000 },
-      { unitCostSatang: 120_000, costSource: 'average', lineTotalSatang: 120_000 },
+      { unitCostSatang: 300_000, costSource: 'average', lineTotalSatang: 300_000 },
     ]);
-    expect(seenByOwner.totalCostSatang).toBe(400_000);
+    expect(seenByOwner.totalCostSatang).toBe(580_000);
+
+    const duplicate = await staff.post('/api/goods-receipts', {
+      lines: [
+        { productId: ram, qty: 1 },
+        { productId: ram, qty: 1 },
+      ],
+    });
+    expect(duplicate.json().error.code).toBe('DUPLICATE_PRODUCT_LINE');
 
     const unverified = (await owner.get('/api/goods-receipts?costStatus=unverified')).json();
     expect(unverified.items.map((r: { id: number }) => r.id)).toEqual([receipt.id]);

@@ -2,15 +2,20 @@ import { and, asc, count, desc, eq, inArray, or, sql, type SQL } from 'drizzle-o
 import { alias } from 'drizzle-orm/sqlite-core';
 import {
   addBangkokMonths,
+  averageAfterRemoval,
   can,
+  correctedAverageCost,
   createGoodsReceiptInputSchema,
   movingAverageCost,
   normalizeScannedCode,
+  voidInputSchema,
   type CostSource,
   type CreateGoodsReceiptInput,
   type ListGoodsReceiptsFilters,
   type Paginated,
   type SessionUser,
+  type VerifyGoodsReceiptCostsInput,
+  type VoidInput,
 } from '@pcshop/shared';
 import type { AppDatabase } from '../../db/client';
 import {
@@ -18,17 +23,20 @@ import {
   goodsReceipts,
   products,
   serialItems,
+  stockMovementSerials,
+  stockMovements,
   suppliers,
   users,
 } from '../../db/schema';
 import { writeAudit } from '../../lib/audit';
-import { badRequest, notFound } from '../../lib/errors';
+import { badRequest, conflict, notFound } from '../../lib/errors';
 import { contains } from '../../lib/sql';
 import { toIso, toIsoOrNull } from '../../lib/time';
 import { allocateDocNumber } from '../../services/numbering.service';
 import * as stockService from '../../services/stock.service';
 
 type Db = AppDatabase;
+type DbOrTx = Pick<AppDatabase, 'select' | 'update'>;
 type ReceiptRow = typeof goodsReceipts.$inferSelect;
 
 // ---------- shaping (full/owner shape; routes narrow it for staff) ----------
@@ -160,24 +168,7 @@ export function getGoodsReceipt(db: Db, id: number): GoodsReceiptFull {
     .where(eq(goodsReceiptItems.goodsReceiptId, id))
     .orderBy(asc(goodsReceiptItems.id))
     .all();
-  const serials = items.length
-    ? db
-        .select({
-          id: serialItems.id,
-          serialNo: serialItems.serialNo,
-          status: serialItems.status,
-          itemId: serialItems.goodsReceiptItemId,
-        })
-        .from(serialItems)
-        .where(
-          inArray(
-            serialItems.goodsReceiptItemId,
-            items.map((i) => i.item.id),
-          ),
-        )
-        .orderBy(asc(serialItems.id))
-        .all()
-    : [];
+  const serials = receivedSerials(db, id);
 
   return {
     ...toListItem(row),
@@ -198,10 +189,37 @@ export function getGoodsReceipt(db: Db, id: number): GoodsReceiptFull {
       costSource: item.costSource,
       lineTotalSatang: item.lineTotalSatang,
       serials: serials
-        .filter((s) => s.itemId === item.id)
+        .filter((s) => s.productId === item.productId)
         .map(({ id: serialId, serialNo, status }) => ({ id: serialId, serialNo, status })),
     })),
   };
+}
+
+/**
+ * Serial units a receipt brought in, found through its ledger rows. A unit keeps one row for life, so
+ * after a void and a new receipt of the same unit, each receipt still lists it. (A receipt has at most
+ * one line per product, so product id identifies the line.)
+ */
+function receivedSerials(db: DbOrTx, receiptId: number) {
+  return db
+    .select({
+      id: serialItems.id,
+      serialNo: serialItems.serialNo,
+      status: serialItems.status,
+      productId: stockMovements.productId,
+    })
+    .from(stockMovements)
+    .innerJoin(stockMovementSerials, eq(stockMovementSerials.movementId, stockMovements.id))
+    .innerJoin(serialItems, eq(serialItems.id, stockMovementSerials.serialItemId))
+    .where(
+      and(
+        eq(stockMovements.refType, 'goods_receipt'),
+        eq(stockMovements.refId, receiptId),
+        eq(stockMovements.type, 'receive'),
+      ),
+    )
+    .orderBy(asc(serialItems.id))
+    .all();
 }
 
 // ---------- create (confirm receipt → stock in immediately) ----------
@@ -218,6 +236,10 @@ export function createGoodsReceipt(
 ): GoodsReceiptFull {
   const input = createGoodsReceiptInputSchema.parse(rawInput);
   const verified = can(actor.role, 'goodsReceipt.verifyCost');
+  const productIds = input.lines.map((line) => line.productId);
+  if (new Set(productIds).size !== productIds.length) {
+    throw badRequest('DUPLICATE_PRODUCT_LINE', 'มีสินค้าซ้ำกันในใบรับ กรุณารวมเป็นรายการเดียว');
+  }
 
   const id = db.transaction((tx) => {
     if (input.supplierId) {
@@ -263,6 +285,9 @@ export function createGoodsReceipt(
         throw badRequest('STOCK_NOT_TRACKED', `สินค้า ${label} ไม่ได้นับสต็อก รับเข้าไม่ได้`);
       }
       const serials = line.serials.map(normalizeScannedCode);
+      if (new Set(serials.map((s) => s.toUpperCase())).size !== serials.length) {
+        throw badRequest('SERIAL_DUPLICATE', `มีซีเรียลซ้ำกันในรายการสินค้า ${label}`);
+      }
       if (product.serialRequired && serials.length !== line.qty) {
         throw badRequest(
           'SERIAL_COUNT_MISMATCH',
@@ -298,6 +323,20 @@ export function createGoodsReceipt(
         product.supplierWarrantyMonths > 0
           ? addBangkokMonths(now, product.supplierWarrantyMonths)
           : null;
+      const unitData = {
+        unitCostSatang: unitCost,
+        goodsReceiptItemId: item.id,
+        supplierWarrantyExpiresAt: warrantyExpiresAt,
+      };
+      // A unit that went back out through a voided receipt comes in again on its existing row.
+      const comingBack = serials.length ? returnedUnits(tx, product.id, serials) : [];
+      for (const unit of comingBack) {
+        tx.update(serialItems)
+          .set({ ...unitData, receivedAt: now })
+          .where(eq(serialItems.id, unit.id))
+          .run();
+      }
+      const comingBackKeys = new Set(comingBack.map((u) => u.serialNo.toUpperCase()));
       stockService.move(tx, {
         productId: product.id,
         qtyChange: line.qty,
@@ -305,12 +344,12 @@ export function createGoodsReceipt(
         ref: { type: 'goods_receipt', id: receipt.id, docNo },
         unitCostSatang: unitCost,
         userId: actor.id,
-        newSerials: serials.map((serialNo) => ({
-          serialNo,
-          unitCostSatang: unitCost,
-          goodsReceiptItemId: item.id,
-          supplierWarrantyExpiresAt: warrantyExpiresAt,
-        })),
+        newSerials: serials
+          .filter((serialNo) => !comingBackKeys.has(serialNo.toUpperCase()))
+          .map((serialNo) => ({ serialNo, ...unitData })),
+        serials: comingBack.length
+          ? { ids: comingBack.map((u) => u.id), status: 'in_stock' }
+          : undefined,
         now,
       });
       totalCost += lineTotal;
@@ -329,6 +368,199 @@ export function createGoodsReceipt(
       detail: { docNo, lines: input.lines.length, totalQty, verified },
     });
     return receipt.id;
+  });
+  return getGoodsReceipt(db, id);
+}
+
+/** Existing units of this product with these serials that left through a voided receipt. */
+function returnedUnits(tx: DbOrTx, productId: number, serials: string[]) {
+  return tx
+    .select({ id: serialItems.id, serialNo: serialItems.serialNo })
+    .from(serialItems)
+    .where(
+      and(
+        eq(serialItems.productId, productId),
+        eq(serialItems.status, 'returned_to_supplier'),
+        inArray(
+          sql`upper(${serialItems.serialNo})`,
+          serials.map((s) => s.toUpperCase()),
+        ),
+      ),
+    )
+    .all();
+}
+
+function loadPostedReceipt(tx: DbOrTx, id: number) {
+  const receipt = tx.select().from(goodsReceipts).where(eq(goodsReceipts.id, id)).get();
+  if (!receipt) throw notFound('ไม่พบใบรับสินค้านี้');
+  if (receipt.status === 'voided') throw conflict('RECEIPT_VOIDED', 'ใบรับสินค้านี้ถูกยกเลิกแล้ว');
+  const items = tx
+    .select()
+    .from(goodsReceiptItems)
+    .where(eq(goodsReceiptItems.goodsReceiptId, id))
+    .orderBy(asc(goodsReceiptItems.id))
+    .all();
+  return { receipt, items };
+}
+
+// ---------- owner cost review (PLAN.md §7.2) ----------
+
+/**
+ * The owner confirms or corrects every line's cost on an unverified receipt. A changed cost moves the
+ * product's average for the units of that line still on hand (see correctedAverageCost); the serial
+ * units get the final cost. Sales made in between keep their cost snapshot. Audited with before/after.
+ */
+export function verifyGoodsReceiptCosts(
+  db: Db,
+  actor: SessionUser,
+  id: number,
+  input: VerifyGoodsReceiptCostsInput,
+): GoodsReceiptFull {
+  db.transaction((tx) => {
+    const { receipt, items } = loadPostedReceipt(tx, id);
+    if (receipt.costStatus === 'verified') {
+      throw conflict('ALREADY_VERIFIED', 'ใบรับสินค้านี้ตรวจสอบต้นทุนแล้ว');
+    }
+    const finalCosts = new Map(input.lines.map((l) => [l.itemId, l.unitCostSatang]));
+    if (finalCosts.size !== input.lines.length || finalCosts.size !== items.length) {
+      throw badRequest('LINES_MISMATCH', 'กรุณาตรวจสอบต้นทุนให้ครบทุกรายการในใบนี้');
+    }
+    if (items.some((item) => !finalCosts.has(item.id))) {
+      throw badRequest('LINES_MISMATCH', 'มีรายการที่ไม่ได้อยู่ในใบรับสินค้านี้');
+    }
+
+    const serials = receivedSerials(tx, id);
+    const changes: Record<string, unknown>[] = [];
+    let totalCost = 0;
+    for (const item of items) {
+      const finalCost = finalCosts.get(item.id)!;
+      totalCost += finalCost * item.qty;
+      if (finalCost === item.unitCostSatang) continue;
+
+      const product = tx.select().from(products).where(eq(products.id, item.productId)).get()!;
+      const average = correctedAverageCost(
+        product.onHand,
+        product.costSatang,
+        item.qty,
+        item.unitCostSatang,
+        finalCost,
+      );
+      tx.update(products).set({ costSatang: average }).where(eq(products.id, product.id)).run();
+      tx.update(goodsReceiptItems)
+        .set({ unitCostSatang: finalCost, lineTotalSatang: finalCost * item.qty })
+        .where(eq(goodsReceiptItems.id, item.id))
+        .run();
+      const unitIds = serials.filter((s) => s.productId === item.productId).map((s) => s.id);
+      if (unitIds.length) {
+        tx.update(serialItems)
+          .set({ unitCostSatang: finalCost })
+          .where(inArray(serialItems.id, unitIds))
+          .run();
+      }
+      changes.push({
+        productId: product.id,
+        sku: product.sku,
+        cost: { from: item.unitCostSatang, to: finalCost },
+        average: { from: product.costSatang, to: average },
+      });
+    }
+
+    const now = Date.now();
+    tx.update(goodsReceipts)
+      .set({
+        costStatus: 'verified',
+        costVerifiedBy: actor.id,
+        costVerifiedAt: now,
+        totalCostSatang: totalCost,
+      })
+      .where(eq(goodsReceipts.id, id))
+      .run();
+    writeAudit(tx, {
+      userId: actor.id,
+      action: 'goods_receipt.cost_verify',
+      entityType: 'goods_receipt',
+      entityId: id,
+      detail: { docNo: receipt.docNo, changes },
+    });
+  });
+  return getGoodsReceipt(db, id);
+}
+
+// ---------- void (owner) ----------
+
+/**
+ * Voids a receipt: every line's stock goes back out (`void` movements with the reason), serial units
+ * become "returned to supplier" (they can be received again later), and the average is reversed when
+ * the result makes sense. Only possible while the stock from this receipt is still all here.
+ */
+export function voidGoodsReceipt(
+  db: Db,
+  actor: SessionUser,
+  id: number,
+  input: VoidInput,
+): GoodsReceiptFull {
+  const reason = voidInputSchema.parse(input).reason;
+  db.transaction((tx) => {
+    const { receipt, items } = loadPostedReceipt(tx, id);
+    const serials = receivedSerials(tx, id);
+    const averages: Record<string, unknown>[] = [];
+
+    for (const item of items) {
+      const product = tx.select().from(products).where(eq(products.id, item.productId)).get()!;
+      const label = `"${product.name}"`;
+      const unitIds = serials.filter((s) => s.productId === item.productId);
+      const used = product.serialRequired
+        ? unitIds.some((s) => s.status !== 'in_stock')
+        : product.onHand < item.qty;
+      if (used) {
+        throw conflict(
+          'RECEIPT_STOCK_USED',
+          `สินค้า ${label} จากใบนี้ถูกขายหรือนำไปใช้แล้ว ยกเลิกใบรับสินค้านี้ไม่ได้ (ให้ปรับสต็อกแทน)`,
+        );
+      }
+
+      const reversed = averageAfterRemoval(
+        product.onHand,
+        product.costSatang,
+        item.qty,
+        item.unitCostSatang,
+      );
+      if (reversed !== null) {
+        tx.update(products).set({ costSatang: reversed }).where(eq(products.id, product.id)).run();
+      }
+      averages.push({
+        productId: product.id,
+        sku: product.sku,
+        from: product.costSatang,
+        to: reversed ?? product.costSatang,
+        kept: reversed === null,
+      });
+
+      stockService.move(tx, {
+        productId: product.id,
+        qtyChange: -item.qty,
+        type: 'void',
+        ref: { type: 'goods_receipt', id, docNo: receipt.docNo },
+        unitCostSatang: item.unitCostSatang,
+        reason,
+        userId: actor.id,
+        serials: product.serialRequired
+          ? { ids: unitIds.map((s) => s.id), status: 'returned_to_supplier' }
+          : undefined,
+      });
+    }
+
+    tx.update(goodsReceipts)
+      .set({ status: 'voided', voidedAt: Date.now(), voidedBy: actor.id, voidReason: reason })
+      .where(eq(goodsReceipts.id, id))
+      .run();
+    writeAudit(tx, {
+      userId: actor.id,
+      action: 'goods_receipt.void',
+      entityType: 'goods_receipt',
+      entityId: id,
+      detail: { docNo: receipt.docNo, reason, averages },
+    });
   });
   return getGoodsReceipt(db, id);
 }

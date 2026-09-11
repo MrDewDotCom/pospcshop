@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { baht } from './money';
 import {
   applyPriceChange,
+  averageAfterRemoval,
+  correctedAverageCost,
   discountBadgeLabel,
   discountPercent,
   endDiscount,
@@ -28,6 +30,39 @@ describe('movingAverageCost', () => {
 
   it('rejects a non-positive quantity', () => {
     expect(() => movingAverageCost(1, 100, 0, 100)).toThrow(RangeError);
+  });
+});
+
+describe('correctedAverageCost', () => {
+  it('applies the correction to all units when none were sold', () => {
+    // 2 received at 100 (provisional), true cost 120, both still here → 120
+    expect(correctedAverageCost(2, baht(100), 2, baht(100), baht(120))).toBe(baht(120));
+  });
+
+  it('applies it only to units that can still be on hand', () => {
+    // 2 received at 100, 1 sold, true cost 120 → the remaining unit is 120 (not 140)
+    expect(correctedAverageCost(1, baht(100), 2, baht(100), baht(120))).toBe(baht(120));
+    // 100 received, 99 sold, +50 each → the last unit is 150, not 5,100
+    expect(correctedAverageCost(1, baht(100), 100, baht(100), baht(150))).toBe(baht(150));
+  });
+
+  it('mixes with older stock and never goes below zero or changes with nothing on hand', () => {
+    // 3 older units at 100 + 2 received at 100 provisional → true 50: (5×100 − 2×50) / 5 = 80
+    expect(correctedAverageCost(5, baht(100), 2, baht(100), baht(50))).toBe(baht(80));
+    expect(correctedAverageCost(1, baht(10), 1, baht(100), 0)).toBe(0);
+    expect(correctedAverageCost(0, baht(100), 2, baht(100), baht(999))).toBe(baht(100));
+  });
+});
+
+describe('averageAfterRemoval', () => {
+  it('reverses a receipt when stock remains', () => {
+    // 4 at 100 then 4 at 120 → avg 110 over 8; remove the 4 at 120 → 100
+    expect(averageAfterRemoval(8, baht(110), 4, baht(120))).toBe(baht(100));
+  });
+
+  it('returns null when nothing would be left or the value goes negative', () => {
+    expect(averageAfterRemoval(4, baht(100), 4, baht(100))).toBeNull();
+    expect(averageAfterRemoval(5, baht(10), 1, baht(100))).toBeNull();
   });
 });
 
