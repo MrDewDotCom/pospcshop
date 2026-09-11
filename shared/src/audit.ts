@@ -25,6 +25,11 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'tag.update': 'แก้ไขแท็ก',
   'tag.archive': 'ซ่อนแท็ก',
   'tag.unarchive': 'แสดงแท็กอีกครั้ง',
+  'supplier.create': 'เพิ่มผู้จำหน่าย',
+  'supplier.update': 'แก้ไขผู้จำหน่าย',
+  'supplier.archive': 'ซ่อนผู้จำหน่าย',
+  'supplier.unarchive': 'แสดงผู้จำหน่ายอีกครั้ง',
+  'goods_receipt.create': 'รับสินค้าเข้า',
 };
 
 export function auditActionLabel(action: string): string {

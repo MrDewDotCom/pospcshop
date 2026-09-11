@@ -10,11 +10,15 @@ import { NotFoundPage } from '@/features/home/NotFoundPage';
 import { ProductDetailPage } from '@/features/products/ProductDetailPage';
 import { ProductCreatePage, ProductEditPage } from '@/features/products/ProductFormPage';
 import { ProductsPage } from '@/features/products/ProductsPage';
+import { ReceivingDetailPage } from '@/features/receiving/ReceivingDetailPage';
+import { ReceivingFormPage } from '@/features/receiving/ReceivingFormPage';
+import { ReceivingListPage } from '@/features/receiving/ReceivingListPage';
 import { NumberingPage } from '@/features/settings/NumberingPage';
 import { PhoneAccessPage } from '@/features/settings/PhoneAccess';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
 import { ShopSettingsPage } from '@/features/settings/ShopSettingsPage';
 import { SetupPage } from '@/features/setup/SetupPage';
+import { SuppliersPage } from '@/features/suppliers/SuppliersPage';
 import { TagsPage } from '@/features/tags/TagsPage';
 import { AuditLogPage } from '@/features/users/AuditLogPage';
 import { UsersPage } from '@/features/users/UsersPage';
@@ -44,6 +48,10 @@ export const router = createBrowserRouter([
               { path: 'products/:id', element: <ProductDetailPage /> },
               { path: 'products/:id/edit', element: <ProductEditPage /> },
               { path: 'categories', element: <CategoriesPage /> },
+              { path: 'suppliers', element: <SuppliersPage /> },
+              { path: 'receiving', element: <ReceivingListPage /> },
+              { path: 'receiving/new', element: <ReceivingFormPage /> },
+              { path: 'receiving/:id', element: <ReceivingDetailPage /> },
               {
                 path: 'settings',
                 element: <SettingsLayout />,

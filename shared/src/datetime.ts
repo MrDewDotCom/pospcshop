@@ -73,6 +73,19 @@ export function fromBangkokParts(
   return Date.UTC(year, month - 1, day, hour, minute, second) - BANGKOK_OFFSET_MS;
 }
 
+/**
+ * Adds calendar months in Thai time, keeping the wall-clock time. The day is clamped to the end of the
+ * target month (31 Jan + 1 month → 28/29 Feb), e.g. for warranty expiry dates.
+ */
+export function addBangkokMonths(ms: number, months: number): number {
+  const p = toBangkokParts(ms);
+  const index = p.year * 12 + (p.month - 1) + months;
+  const year = Math.floor(index / 12);
+  const month = (index % 12) + 1;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return fromBangkokParts(year, month, Math.min(p.day, lastDay), p.hour, p.minute, p.second);
+}
+
 export function toBuddhistYear(gregorianYear: number): number {
   return gregorianYear + BUDDHIST_ERA_OFFSET;
 }

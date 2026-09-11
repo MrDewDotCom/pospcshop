@@ -8,6 +8,8 @@ export * from './files';
 export * from './categories';
 export * from './tags';
 export * from './products';
+export * from './suppliers';
+export * from './goodsReceipts';
 
 /** Shape of every API error response. */
 export interface ApiErrorBody {

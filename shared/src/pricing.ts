@@ -1,7 +1,7 @@
 // Pricing rules. A "discount" is always a product price reduction (owner decision Q6): the product keeps
 // its previous price as the regular price, and the UI shows a "-X%" badge. There are no manual discounts.
 
-import { assertSatang } from './money';
+import { assertSatang, divRound } from './money';
 
 export interface PriceState {
   /** Current selling price. null = "awaiting price" (can't be sold). */
@@ -76,4 +76,26 @@ export function applyPriceChange(current: PriceState, input: PriceChangeInput): 
 export function endDiscount(current: PriceState): PriceState {
   if (!isDiscounted(current)) return { ...current, regularPriceSatang: null };
   return { priceSatang: current.regularPriceSatang, regularPriceSatang: null };
+}
+
+// ---------- cost (owner only; PLAN.md §7.2) ----------
+
+/**
+ * Moving weighted average cost after receiving `qty` units at `unitCostSatang`:
+ * (onHand × avg + qty × unitCost) / (onHand + qty), rounded half-up. When nothing (or less than nothing)
+ * is on hand, the old average means nothing, so the new unit cost becomes the average.
+ */
+export function movingAverageCost(
+  onHand: number,
+  averageSatang: number,
+  qty: number,
+  unitCostSatang: number,
+): number {
+  assertSatang(averageSatang, 'averageSatang');
+  assertSatang(unitCostSatang, 'unitCostSatang');
+  if (!Number.isSafeInteger(qty) || qty <= 0) {
+    throw new RangeError('qty must be a positive integer');
+  }
+  if (onHand <= 0) return unitCostSatang;
+  return divRound(onHand * averageSatang + qty * unitCostSatang, onHand + qty);
 }

@@ -6,9 +6,30 @@ import {
   discountPercent,
   endDiscount,
   isDiscounted,
+  movingAverageCost,
   unitSavingsSatang,
   type PriceState,
 } from './pricing';
+
+describe('movingAverageCost', () => {
+  it('weights the old average by stock on hand', () => {
+    // 2 units at 100 + 2 units at 200 → 150
+    expect(movingAverageCost(2, baht(100), 2, baht(200))).toBe(baht(150));
+    // 1 at 100.00 + 2 at 100.01 → 100.0066… → rounds to 100.01
+    expect(movingAverageCost(1, 10_000, 2, 10_001)).toBe(10_001);
+    // 2 at 100.00 + 1 at 100.01 → 100.0033… → rounds to 100.00
+    expect(movingAverageCost(2, 10_000, 1, 10_001)).toBe(10_000);
+  });
+
+  it('uses the new cost when nothing is on hand', () => {
+    expect(movingAverageCost(0, baht(999), 3, baht(120))).toBe(baht(120));
+    expect(movingAverageCost(-2, baht(999), 3, baht(120))).toBe(baht(120));
+  });
+
+  it('rejects a non-positive quantity', () => {
+    expect(() => movingAverageCost(1, 100, 0, 100)).toThrow(RangeError);
+  });
+});
 
 const priced = (price: number | null, regular: number | null = null): PriceState => ({
   priceSatang: price === null ? null : baht(price),

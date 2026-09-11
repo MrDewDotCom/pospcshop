@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addBangkokMonths,
   bangkokDateKey,
   bangkokDayRange,
   bangkokMonthRange,
@@ -14,6 +15,30 @@ import {
 const lateEvening = Date.UTC(2026, 8, 10, 16, 30);
 // 2026-09-10 17:30 UTC = 2026-09-11 00:30 in Bangkok (already the next Thai day)
 const afterMidnight = Date.UTC(2026, 8, 10, 17, 30);
+
+describe('addBangkokMonths', () => {
+  it('adds months on the Thai calendar and keeps the time', () => {
+    // 23:30 on 10 Sep (Bangkok) + 36 months → 23:30 on 10 Sep 2029 (Bangkok)
+    expect(toBangkokParts(addBangkokMonths(lateEvening, 36))).toMatchObject({
+      year: 2029,
+      month: 9,
+      day: 10,
+      hour: 23,
+      minute: 30,
+    });
+    expect(addBangkokMonths(lateEvening, 0)).toBe(lateEvening);
+  });
+
+  it('clamps to the end of shorter months and crosses years', () => {
+    const jan31 = fromBangkokParts(2027, 1, 31, 10);
+    expect(toBangkokParts(addBangkokMonths(jan31, 1))).toMatchObject({ month: 2, day: 28 });
+    expect(toBangkokParts(addBangkokMonths(fromBangkokParts(2027, 11, 15), 3))).toMatchObject({
+      year: 2028,
+      month: 2,
+      day: 15,
+    });
+  });
+});
 
 describe('Bangkok calendar parts', () => {
   it('shifts UTC to UTC+7', () => {

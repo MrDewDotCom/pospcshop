@@ -10,9 +10,11 @@ import { auditRoutes } from './modules/audit/routes';
 import { authRoutes } from './modules/auth/routes';
 import { categoryRoutes } from './modules/categories/routes';
 import { fileRoutes } from './modules/files/routes';
+import { goodsReceiptRoutes } from './modules/goods-receipts/routes';
 import { productRoutes } from './modules/products/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { setupRoutes } from './modules/setup/routes';
+import { supplierRoutes } from './modules/suppliers/routes';
 import { systemRoutes } from './modules/system/routes';
 import { tagRoutes } from './modules/tags/routes';
 import { userRoutes } from './modules/users/routes';
@@ -68,6 +70,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(categoryRoutes);
   await app.register(tagRoutes);
   await app.register(productRoutes);
+  await app.register(supplierRoutes);
+  await app.register(goodsReceiptRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {

@@ -557,7 +557,10 @@ erDiagram
 
 ### 7.1 Stock ledger
 
-- **Single entry point:** `stockService.move(tx, { productId, qtyChange, type, ref, serialIds, unitCost, reason, userId })`, which in one transaction:
+- **Single entry point:** `stockService.move(tx, { productId, qtyChange, type, ref, unitCostSatang, reason, userId, newSerials?, serials? })`.
+  `tx` must be an open transaction (the type rejects the root DB object). Inbound serial units are either created
+  (`newSerials`, e.g. receiving) or existing units moved back to `in_stock` (`serials`); outbound moves take the
+  exact `in_stock` units and their new status (e.g. `sold`, `written_off`). In one transaction it:
   1. reads the current `on_hand`
   2. checks for negative stock (disallowed unless `allow_negative_stock`; serial-tracked stock can **never** go negative)
   3. inserts into `stock_movements` with `balance_after`
@@ -950,7 +953,7 @@ price, the struck-through regular price, and the "-X%" badge everywhere, and `Pr
 9. **Products:** CRUD with the role-based field rules, search/filters, images, owner pricing endpoint + price history + `PriceTag` badge, barcode lookup (+ Thai layout mapping)
 10. **Tags:** custom tag management, product tag assignment, automatic tag derivation, `ProductTags` chips + filters
 11. **Stock service + suppliers + goods receiving (serials, confirm dialog)** + ledger integration tests
-12. **Goods-receipt cost review** (owner confirm/correct, average cost correction) + tests
+12. **Goods-receipt cost review** (owner confirm/correct, average cost correction) + **goods-receipt void** (both touch the average cost) + tests
 13. **Stock adjustments + movement history + integrity check + phone stock lookup**
 14. **No-cost-leak + no-money-write tests** (every route as staff)
 15. **Backup/restore:** automatic + button + restore page + tests
