@@ -13,6 +13,7 @@ import { ProductsPage } from '@/features/products/ProductsPage';
 import { ReceivingDetailPage } from '@/features/receiving/ReceivingDetailPage';
 import { ReceivingFormPage } from '@/features/receiving/ReceivingFormPage';
 import { ReceivingListPage } from '@/features/receiving/ReceivingListPage';
+import { BackupPage } from '@/features/settings/BackupPage';
 import { NumberingPage } from '@/features/settings/NumberingPage';
 import { PhoneAccessPage } from '@/features/settings/PhoneAccess';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
                   { path: 'tags', element: <TagsPage /> },
                   { path: 'numbering', element: <NumberingPage /> },
                   { path: 'users', element: <UsersPage /> },
+                  { path: 'backup', element: <BackupPage /> },
                   { path: 'network', element: <PhoneAccessPage /> },
                   { path: 'audit', element: <AuditLogPage /> },
                 ],

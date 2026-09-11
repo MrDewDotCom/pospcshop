@@ -31,6 +31,19 @@ export async function createTestApp() {
 }
 
 /**
+ * Like createTestApp, but the database is a real file in the temporary data directory (backup and
+ * restore need one). `reuseRoot` reopens an existing data directory, like restarting the server.
+ */
+export async function createFileTestApp(reuseRoot?: string) {
+  const paths = dataPaths(reuseRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), 'pcshop-test-')));
+  ensureDataDirs(paths);
+  const database = new DatabaseManager(paths.dbFile, MIGRATIONS_FOLDER);
+  const app = await buildApp({ database, paths });
+  app.addHook('onClose', async () => database.close());
+  return { app, paths, cleanup: () => fs.rmSync(paths.root, { recursive: true, force: true }) };
+}
+
+/**
  * A tiny HTTP client for tests that behaves like the browser: it keeps the session cookie and sends
  * the CSRF header on every request.
  */

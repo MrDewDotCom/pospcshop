@@ -33,6 +33,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'goods_receipt.cost_verify': 'ตรวจสอบ/แก้ไขต้นทุนใบรับสินค้า',
   'goods_receipt.void': 'ยกเลิกใบรับสินค้า',
   'stock.adjust': 'ปรับสต็อก',
+  'backup.create': 'สำรองข้อมูล',
+  'backup.settings': 'แก้ไขการตั้งค่าสำรองข้อมูล',
+  'backup.restore': 'กู้คืนข้อมูลจากข้อมูลสำรอง',
 };
 
 export function auditActionLabel(action: string): string {

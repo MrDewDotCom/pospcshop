@@ -7,6 +7,7 @@ import type { DataPaths } from './config';
 import type { DatabaseManager } from './db/client';
 import { plainJsonSerializerCompiler, zodValidatorCompiler } from './lib/zod';
 import { auditRoutes } from './modules/audit/routes';
+import { backupRoutes } from './modules/backups/routes';
 import { authRoutes } from './modules/auth/routes';
 import { categoryRoutes } from './modules/categories/routes';
 import { fileRoutes } from './modules/files/routes';
@@ -20,6 +21,7 @@ import { supplierRoutes } from './modules/suppliers/routes';
 import { systemRoutes } from './modules/system/routes';
 import { tagRoutes } from './modules/tags/routes';
 import { userRoutes } from './modules/users/routes';
+import { startBackupScheduler } from './services/backup.service';
 import { ensureDefaultSequences } from './services/numbering.service';
 import { findStockMismatches } from './services/stock.service';
 import { authPlugin, permissionOf } from './plugins/auth';
@@ -32,6 +34,8 @@ declare module 'fastify' {
     paths: DataPaths | undefined;
     /** Every registered route; the security tests walk it (no cost leak, no money write). */
     routeTable: RegisteredRoute[];
+    /** Set while a restore swaps the database; API requests get 503 meanwhile. */
+    maintenance: { reason: string | null };
   }
 }
 
@@ -80,6 +84,20 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.setValidatorCompiler(zodValidatorCompiler);
   app.setSerializerCompiler(plainJsonSerializerCompiler);
   registerErrorHandler(app);
+
+  // While a restore swaps the database file, every other API request waits outside.
+  app.decorate('maintenance', { reason: null as string | null });
+  app.addHook('onRequest', async (request, reply) => {
+    if (
+      app.maintenance.reason &&
+      request.url.startsWith('/api/') &&
+      request.url !== '/api/health'
+    ) {
+      return reply.code(503).send({
+        error: { code: 'MAINTENANCE', message: 'ระบบกำลังกู้คืนข้อมูล กรุณารอสักครู่แล้วลองใหม่' },
+      });
+    }
+  });
   // Called directly (not app.register) so its hooks apply to every route in the app.
   await authPlugin(app);
 
@@ -102,6 +120,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(goodsReceiptRoutes);
   await app.register(stockRoutes);
   await app.register(serialRoutes);
+  await app.register(backupRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {
@@ -133,6 +152,13 @@ export async function startServer(options: StartOptions): Promise<FastifyInstanc
       { mismatches },
       `Stock integrity: ${mismatches.length} product(s) disagree with the ledger`,
     );
+  }
+  if (options.paths) {
+    const stopScheduler = startBackupScheduler(app, {
+      database: options.database,
+      paths: options.paths,
+    });
+    app.addHook('onClose', async () => stopScheduler());
   }
   await app.listen({ host: options.host ?? '0.0.0.0', port: options.port ?? 3300 });
   return app;

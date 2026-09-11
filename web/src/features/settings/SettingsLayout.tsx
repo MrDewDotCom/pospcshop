@@ -9,12 +9,12 @@ interface SettingsTab {
   permission?: Permission;
 }
 
-// More tabs are added as their sub-tasks land (backup).
 const TABS: SettingsTab[] = [
   { to: '/settings/shop', label: 'ข้อมูลร้าน', permission: 'settings.manage' },
   { to: '/settings/tags', label: 'แท็กสินค้า', permission: 'tag.manage' },
   { to: '/settings/numbering', label: 'เลขที่เอกสาร', permission: 'settings.manage' },
   { to: '/settings/users', label: 'ผู้ใช้งาน', permission: 'users.manage' },
+  { to: '/settings/backup', label: 'สำรองข้อมูล', permission: 'backup.manage' },
   { to: '/settings/network', label: 'เชื่อมต่อมือถือ' },
   { to: '/settings/audit', label: 'ประวัติการใช้งาน', permission: 'audit.view' },
 ];

@@ -912,6 +912,12 @@ price, the struck-through regular price, and the "-X%" badge everywhere, and `Pr
   4. Reopen → run migrations (for older backups) → check stock integrity
   5. All sessions become invalid, so everyone logs in again
 - Automated test: create data → back up → change data → restore → data matches the backup
+- **As built (sub-task 15):** `server/src/services/backup.service.ts`. Endpoints (owner): `GET /backups` (list + status + settings + free
+  space), `POST /backups` (back up now), `PUT /backups/settings` (folder must be absolute and writable, keep count, hour),
+  `POST /backups/restore`. While a restore swaps the DB, other API requests get `503 MAINTENANCE`. If the swap fails, the safety
+  backup is put back. Schema version = applied rows in `__drizzle_migrations` vs. entries in the shipped migration journal.
+  `main.ts` calls `backupBeforeMigrations()` before opening the DB (reason `pre_migration`). The manifest records `productCount` and
+  `goodsReceiptCount` (a sale count joins in Phase 2).
 
 ---
 

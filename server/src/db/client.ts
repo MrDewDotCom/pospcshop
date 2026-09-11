@@ -61,10 +61,30 @@ export class DatabaseManager {
     return this.#handle.sqlite;
   }
 
+  get file(): string {
+    return this.filename;
+  }
+
+  get migrations(): string {
+    return this.migrationsFolder;
+  }
+
   /** Closes and reopens the database file (and applies migrations again). */
   reopen(): void {
+    this.reopenAfter(() => {});
+  }
+
+  /**
+   * Closes the database, runs `swap` (e.g. replace the file with a backup), then reopens it and applies
+   * pending migrations. Used by restore; nothing may touch the database while `swap` runs.
+   */
+  reopenAfter(swap: () => void): void {
     this.close();
-    this.#handle = DatabaseManager.#openAndMigrate(this.filename, this.migrationsFolder);
+    try {
+      swap();
+    } finally {
+      this.#handle = DatabaseManager.#openAndMigrate(this.filename, this.migrationsFolder);
+    }
   }
 
   close(): void {

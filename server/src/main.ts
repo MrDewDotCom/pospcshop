@@ -2,6 +2,7 @@ import path from 'node:path';
 import { startServer } from './app';
 import { dataPaths, ensureDataDirs, readFileConfig, resolveDataDir, resolvePort } from './config';
 import { DatabaseManager } from './db/client';
+import { backupBeforeMigrations } from './services/backup.service';
 
 // Replaced with true by the production build (scripts/build.mjs).
 declare const __PRODUCTION__: boolean | undefined;
@@ -16,6 +17,11 @@ const devRoot = path.resolve(import.meta.dirname, '../..');
 try {
   const paths = dataPaths(resolveDataDir({ isProduction, devRoot }));
   ensureDataDirs(paths);
+  // An app update may bring migrations: back up the existing data before they run (PLAN P9).
+  const preMigrationBackup = await backupBeforeMigrations(paths, migrationsFolder);
+  if (preMigrationBackup) {
+    console.log(`Backed up before database migrations: ${preMigrationBackup}`);
+  }
   const database = new DatabaseManager(paths.dbFile, migrationsFolder);
 
   const app = await startServer({

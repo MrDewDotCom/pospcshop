@@ -11,6 +11,7 @@ export * from './products';
 export * from './suppliers';
 export * from './goodsReceipts';
 export * from './stock';
+export * from './backups';
 
 /** Shape of every API error response. */
 export interface ApiErrorBody {
