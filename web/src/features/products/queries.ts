@@ -62,7 +62,7 @@ export async function lookupProductCode(code: string): Promise<ProductLookupResp
   }
 }
 
-/** Every product mutation refreshes the product lists and details (and category counts). */
+/** Every product mutation refreshes the product lists and details (and category/tag counts). */
 function useProductMutation<T>(mutationFn: (input: T) => Promise<Product>) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -72,6 +72,7 @@ function useProductMutation<T>(mutationFn: (input: T) => Promise<Product>) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: productsKey }),
         queryClient.invalidateQueries({ queryKey: ['categories'] }),
+        queryClient.invalidateQueries({ queryKey: ['tags'] }),
       ]);
     },
   });
@@ -88,6 +89,11 @@ export const useUpdateProduct = () =>
 export const useSetProductImages = () =>
   useProductMutation(({ id, fileIds }: { id: number; fileIds: number[] }) =>
     api.put<Product>(`/api/products/${id}/images`, { fileIds }),
+  );
+
+export const useSetProductTags = () =>
+  useProductMutation(({ id, tagIds }: { id: number; tagIds: number[] }) =>
+    api.put<Product>(`/api/products/${id}/tags`, { tagIds }),
   );
 
 export const useSetProductPricing = () =>

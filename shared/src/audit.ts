@@ -20,6 +20,11 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'product.pricing_change': 'เปลี่ยนราคา/ต้นทุนสินค้า',
   'product.archive': 'ซ่อนสินค้า',
   'product.unarchive': 'แสดงสินค้าอีกครั้ง',
+  'product.tags_change': 'เปลี่ยนแท็กของสินค้า',
+  'tag.create': 'เพิ่มแท็ก',
+  'tag.update': 'แก้ไขแท็ก',
+  'tag.archive': 'ซ่อนแท็ก',
+  'tag.unarchive': 'แสดงแท็กอีกครั้ง',
 };
 
 export function auditActionLabel(action: string): string {

@@ -5,7 +5,6 @@ import { ImageOff, Plus, ScanBarcode, Search } from 'lucide-react';
 import { cn } from 'cn';
 import {
   PRODUCT_CONDITION_LABELS,
-  formatWarranty,
   type ListProductsQuery,
   type ProductListItem,
 } from '@pcshop/shared';
@@ -32,10 +31,12 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { PriceTag } from '@/components/PriceTag';
+import { ProductTags } from '@/components/ProductTags';
 import { errorMessage } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { useCurrentUser } from '@/features/auth/queries';
 import { useCategories } from '@/features/categories/queries';
+import { useTags } from '@/features/tags/queries';
 import { lookupProductCode, useProducts } from './queries';
 
 const PAGE_SIZE = 25;
@@ -195,12 +196,14 @@ export function ProductsPage() {
   const showCost = user.can('cost.view');
   const [params, setParams] = useSearchParams();
   const { data: categories } = useCategories();
+  const { data: tags } = useTags();
 
   const param = (key: string) => params.get(key) ?? undefined;
   const page = Number(params.get('page') ?? 1) || 1;
   const query: ListProductsQuery = {
     q: param('q'),
     categoryId: param('categoryId'),
+    tagId: param('tagId'),
     condition: param('condition') as ListProductsQuery['condition'],
     stock: param('stock') as ListProductsQuery['stock'],
     discounted: params.get('discounted') === 'true' ? 'true' : undefined,
@@ -255,6 +258,17 @@ export function ProductsPage() {
               ...(categories ?? []).map((c) => ({ value: String(c.id), label: c.name })),
             ]}
           />
+          {tags && tags.length > 0 && (
+            <FilterSelect
+              label="แท็ก"
+              value={params.get('tagId') ?? ALL}
+              onChange={(v) => setParam('tagId', v)}
+              options={[
+                { value: ALL, label: 'ทุกแท็ก' },
+                ...tags.map((t) => ({ value: String(t.id), label: t.name })),
+              ]}
+            />
+          )}
           <FilterSelect
             label="สภาพสินค้า"
             value={params.get('condition') ?? ALL}
@@ -305,7 +319,7 @@ export function ProductsPage() {
             <TableRow>
               <TableHead>สินค้า</TableHead>
               <TableHead>หมวดหมู่</TableHead>
-              <TableHead>สภาพ / ประกัน</TableHead>
+              <TableHead>แท็ก</TableHead>
               <TableHead>ราคาขาย</TableHead>
               {showCost && <TableHead className="text-right">ต้นทุนเฉลี่ย</TableHead>}
               <TableHead className="text-right">คงเหลือ</TableHead>
@@ -351,15 +365,13 @@ export function ProductsPage() {
                   </Link>
                 </TableCell>
                 <TableCell className="text-sm">{product.categoryName}</TableCell>
-                <TableCell className="text-sm">
-                  <div className="flex flex-col items-start gap-0.5">
-                    <Badge variant={product.condition === 'used' ? 'secondary' : 'outline'}>
-                      {PRODUCT_CONDITION_LABELS[product.condition]}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatWarranty(product.warrantyType, product.warrantyMonths)}
-                    </span>
-                  </div>
+                <TableCell>
+                  {/* Price and stock columns already show these. */}
+                  <ProductTags
+                    product={product}
+                    hide={['discount', 'awaitingPrice', 'stock']}
+                    className="max-w-72"
+                  />
                 </TableCell>
                 <TableCell>
                   <PriceTag

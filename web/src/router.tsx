@@ -15,6 +15,7 @@ import { PhoneAccessPage } from '@/features/settings/PhoneAccess';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
 import { ShopSettingsPage } from '@/features/settings/ShopSettingsPage';
 import { SetupPage } from '@/features/setup/SetupPage';
+import { TagsPage } from '@/features/tags/TagsPage';
 import { AuditLogPage } from '@/features/users/AuditLogPage';
 import { UsersPage } from '@/features/users/UsersPage';
 
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
                 element: <SettingsLayout />,
                 children: [
                   { path: 'shop', element: <ShopSettingsPage /> },
+                  { path: 'tags', element: <TagsPage /> },
                   { path: 'numbering', element: <NumberingPage /> },
                   { path: 'users', element: <UsersPage /> },
                   { path: 'network', element: <PhoneAccessPage /> },

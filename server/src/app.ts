@@ -14,6 +14,7 @@ import { productRoutes } from './modules/products/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { setupRoutes } from './modules/setup/routes';
 import { systemRoutes } from './modules/system/routes';
+import { tagRoutes } from './modules/tags/routes';
 import { userRoutes } from './modules/users/routes';
 import { ensureDefaultSequences } from './services/numbering.service';
 import { authPlugin } from './plugins/auth';
@@ -65,6 +66,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(systemRoutes);
   await app.register(fileRoutes);
   await app.register(categoryRoutes);
+  await app.register(tagRoutes);
   await app.register(productRoutes);
 
   const webDistDir = options.webDistDir;

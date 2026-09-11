@@ -11,6 +11,7 @@ import {
   productPricingInputSchema,
   productStaffSchema,
   setProductImagesInputSchema,
+  setProductTagsInputSchema,
   updateProductInputSchema,
   type PriceHistoryEntry,
 } from '@pcshop/shared';
@@ -28,6 +29,7 @@ import {
   setProductArchived,
   setProductImages,
   setProductPricing,
+  setProductTags,
   updateProduct,
 } from './service';
 
@@ -114,6 +116,15 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         detailSchemas,
         setProductImages(db(), request.params.id, request.body.fileIds),
       ),
+  );
+
+  r.put(
+    '/api/products/:id/tags',
+    {
+      preHandler: requirePermission('tag.manage'),
+      schema: { params: idParamSchema, body: setProductTagsInputSchema },
+    },
+    async (request) => setProductTags(db(), request.user!, request.params.id, request.body.tagIds),
   );
 
   // Money fields change only here (owner only).

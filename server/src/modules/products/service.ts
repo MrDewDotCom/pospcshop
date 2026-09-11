@@ -15,6 +15,7 @@ import {
   STAFF_EDITABLE_PRODUCT_FIELDS,
   applyPriceChange,
   can,
+  deriveAutoTags,
   endDiscount,
   looksLikeThaiLayout,
   normalizeScannedCode,
@@ -25,9 +26,11 @@ import {
   type ListProductsFilters,
   type LookupMatch,
   type Paginated,
+  type AutoTag,
   type PriceHistoryEntry,
   type ProductImage,
   type ProductPricingInput,
+  type ProductTagChip,
   type SessionUser,
   type UpdateProductInput,
   createProductInputSchema,
@@ -38,8 +41,10 @@ import {
   files,
   productImages,
   productPriceHistory,
+  productTags,
   products,
   serialItems,
+  tags,
   users,
 } from '../../db/schema';
 import { writeAudit } from '../../lib/audit';
@@ -103,6 +108,8 @@ export interface ProductListItemFull {
   specs: Record<string, unknown>;
   thumbUrl: string | null;
   archivedAt: string | null;
+  tags: ProductTagChip[];
+  autoTags: AutoTag[];
 }
 
 export interface ProductDetailFull extends ProductListItemFull {
@@ -118,6 +125,7 @@ function toListItem(
   row: ProductRow,
   category: CategoryRow,
   thumbUrl: string | null,
+  tagChips: ProductTagChip[],
 ): ProductListItemFull {
   return {
     id: row.id,
@@ -141,7 +149,27 @@ function toListItem(
     specs: row.specs,
     thumbUrl,
     archivedAt: toIsoOrNull(row.archivedAt),
+    tags: tagChips,
+    // Pending customer returns join the source data in Phase 2.
+    autoTags: deriveAutoTags(row),
   };
+}
+
+/** Active custom tags per product, in tag display order. Products without tags map to []. */
+function tagChipsByProduct(db: DbOrTx, productIds: number[]): Map<number, ProductTagChip[]> {
+  const result = new Map<number, ProductTagChip[]>(productIds.map((id) => [id, []]));
+  if (productIds.length === 0) return result;
+  const rows = db
+    .select({ productId: productTags.productId, id: tags.id, name: tags.name, color: tags.color })
+    .from(productTags)
+    .innerJoin(tags, eq(tags.id, productTags.tagId))
+    .where(and(inArray(productTags.productId, productIds), isNull(tags.archivedAt)))
+    .orderBy(asc(tags.sortOrder), asc(tags.id))
+    .all();
+  for (const { productId, ...chip } of rows) {
+    result.get(productId)?.push({ ...chip, color: chip.color as ProductTagChip['color'] });
+  }
+  return result;
 }
 
 function imagesOf(db: DbOrTx, productId: number): ProductImage[] {
@@ -173,8 +201,9 @@ export function getProduct(db: DbOrTx, id: number): ProductDetailFull {
   if (!found) throw PRODUCT_NOT_FOUND();
   const { product, category } = found;
   const images = imagesOf(db, id);
+  const chips = tagChipsByProduct(db, [id]).get(id)!;
   return {
-    ...toListItem(product, category, images[0]?.thumbUrl ?? null),
+    ...toListItem(product, category, images[0]?.thumbUrl ?? null, chips),
     description: product.description,
     supplierWarrantyMonths: product.supplierWarrantyMonths,
     notes: product.notes,
@@ -210,6 +239,11 @@ export function listProducts(db: Db, query: ListProductsFilters): Paginated<Prod
     filters.push(or(...matchers)!);
   }
   if (query.categoryId) filters.push(eq(products.categoryId, query.categoryId));
+  if (query.tagId) {
+    filters.push(
+      sql`exists (select 1 from ${productTags} where ${productTags.productId} = ${products.id} and ${productTags.tagId} = ${query.tagId})`,
+    );
+  }
   if (query.condition) filters.push(eq(products.condition, query.condition));
   if (query.stock === 'in') filters.push(sql`${products.onHand} > 0`);
   if (query.stock === 'out')
@@ -246,11 +280,20 @@ export function listProducts(db: Db, query: ListProductsFilters): Paginated<Prod
     .offset((query.page - 1) * query.pageSize)
     .all();
   const total = db.select({ n: count() }).from(products).where(where).get()!.n;
+  const chips = tagChipsByProduct(
+    db,
+    rows.map((r) => r.product.id),
+  );
 
   return {
     total,
     items: rows.map(({ product, category, thumbPath }) =>
-      toListItem(product, category, thumbPath ? `/uploads/${thumbPath}` : null),
+      toListItem(
+        product,
+        category,
+        thumbPath ? `/uploads/${thumbPath}` : null,
+        chips.get(product.id)!,
+      ),
     ),
   };
 }
@@ -277,7 +320,12 @@ export function lookupProduct(db: Db, rawCode: string): LookupResult | null {
       .where(and(where, active))
       .get();
   const item = (row: NonNullable<ReturnType<typeof withCategory>>) =>
-    toListItem(row.product, row.category, row.thumbPath ? `/uploads/${row.thumbPath}` : null);
+    toListItem(
+      row.product,
+      row.category,
+      row.thumbPath ? `/uploads/${row.thumbPath}` : null,
+      tagChipsByProduct(db, [row.product.id]).get(row.product.id)!,
+    );
 
   for (const code of candidates) {
     const byBarcode = withCategory(eq(products.barcode, code));
@@ -538,6 +586,67 @@ export function setProductImages(db: Db, id: number, fileIds: number[]): Product
       throw PRODUCT_NOT_FOUND();
     }
     replaceImages(tx, id, fileIds);
+  });
+  return getProduct(db, id);
+}
+
+/**
+ * Replaces the product's custom tags (owner only). Archived tags can't be newly assigned, but ones the
+ * product already has are kept: they stay hidden until the owner shows the tag again.
+ */
+export function setProductTags(
+  db: Db,
+  actor: SessionUser,
+  id: number,
+  tagIds: number[],
+): ProductDetailFull {
+  db.transaction((tx) => {
+    const product = tx
+      .select({ sku: products.sku })
+      .from(products)
+      .where(eq(products.id, id))
+      .get();
+    if (!product) throw PRODUCT_NOT_FOUND();
+
+    const current = tx
+      .select({ tagId: productTags.tagId, archivedAt: tags.archivedAt })
+      .from(productTags)
+      .innerJoin(tags, eq(tags.id, productTags.tagId))
+      .where(eq(productTags.productId, id))
+      .all();
+    const keptArchived = current.filter((t) => t.archivedAt !== null).map((t) => t.tagId);
+
+    const wanted = [...new Set(tagIds)];
+    const found = wanted.length
+      ? tx
+          .select({ id: tags.id, archivedAt: tags.archivedAt })
+          .from(tags)
+          .where(inArray(tags.id, wanted))
+          .all()
+      : [];
+    if (found.length !== wanted.length) throw badRequest('TAG_NOT_FOUND', 'ไม่พบแท็กบางแท็ก');
+    if (found.some((t) => t.archivedAt !== null && !keptArchived.includes(t.id))) {
+      throw badRequest('TAG_ARCHIVED', 'แท็กที่ซ่อนไว้ติดให้สินค้าไม่ได้');
+    }
+
+    const byId = (a: number, b: number) => a - b;
+    const before = current.map((t) => t.tagId).sort(byId);
+    const next = [...new Set([...wanted, ...keptArchived])].sort(byId);
+    if (next.join() === before.join()) return;
+
+    tx.delete(productTags).where(eq(productTags.productId, id)).run();
+    if (next.length) {
+      tx.insert(productTags)
+        .values(next.map((tagId) => ({ productId: id, tagId })))
+        .run();
+    }
+    writeAudit(tx, {
+      userId: actor.id,
+      action: 'product.tags_change',
+      entityType: 'product',
+      entityId: id,
+      detail: { sku: product.sku, from: before, to: next },
+    });
   });
   return getProduct(db, id);
 }

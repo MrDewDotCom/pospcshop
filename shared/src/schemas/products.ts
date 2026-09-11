@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CATEGORY_KINDS, PRODUCT_CONDITIONS, WARRANTY_TYPES } from '../enums';
 import { paginationQuerySchema } from './common';
+import { autoTagSchema, productTagChipSchema } from './tags';
 
 // ---------- responses ----------
 
@@ -33,6 +34,10 @@ const productListItemBase = z.object({
   specs: z.record(z.string(), z.unknown()),
   thumbUrl: z.string().nullable(),
   archivedAt: z.string().nullable(),
+  /** Owner-defined tags (archived tags are left out). */
+  tags: z.array(productTagChipSchema),
+  /** Derived by `deriveAutoTags` (shared/tags.ts); never stored. */
+  autoTags: z.array(autoTagSchema),
 });
 
 export const productListItemStaffSchema = productListItemBase;
@@ -151,6 +156,7 @@ export const PRODUCT_STATUS_FILTERS = ['active', 'archived', 'awaitingPrice'] as
 export const listProductsQuerySchema = paginationQuerySchema.extend({
   q: z.string().trim().max(100).optional(),
   categoryId: z.coerce.number().int().positive().optional(),
+  tagId: z.coerce.number().int().positive().optional(),
   condition: z.enum(PRODUCT_CONDITIONS).optional(),
   stock: z.enum(PRODUCT_STOCK_FILTERS).optional(),
   discounted: z

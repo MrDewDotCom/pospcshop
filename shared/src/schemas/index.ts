@@ -6,6 +6,7 @@ export * from './users';
 export * from './settings';
 export * from './files';
 export * from './categories';
+export * from './tags';
 export * from './products';
 
 /** Shape of every API error response. */

@@ -7,6 +7,7 @@ export * from './datetime';
 export * from './docNumber';
 export * from './barcode';
 export * from './warranty';
+export * from './tags';
 export * from './enums';
 export * from './permissions';
 export * from './schemas';

@@ -1,10 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { ArrowLeft, Eye, EyeOff, ImageOff, Pencil, Tag } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, ImageOff, Pencil, Tag, Tags } from 'lucide-react';
 import { cn } from 'cn';
 import {
-  PRODUCT_CONDITION_LABELS,
   formatSpecs,
   formatWarranty,
   formatWarrantyPeriod,
@@ -26,10 +25,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PriceTag } from '@/components/PriceTag';
+import { ProductTags } from '@/components/ProductTags';
 import { errorMessage } from '@/lib/api';
 import { formatMoney, useFormat } from '@/lib/format';
 import { useCurrentUser } from '@/features/auth/queries';
 import { PricingDialog } from './PricingDialog';
+import { ProductTagsDialog } from './ProductTagsDialog';
 import { StockText } from './ProductsPage';
 import { useArchiveProduct, usePriceHistory, useProduct } from './queries';
 
@@ -166,6 +167,7 @@ export function ProductDetailPage() {
   const user = useCurrentUser();
   const { data: product, isPending, error } = useProduct(id);
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
 
   if (isPending) return <p className="text-muted-foreground">กำลังโหลด…</p>;
   if (error || !product) return <p className="text-destructive">{errorMessage(error)}</p>;
@@ -189,11 +191,10 @@ export function ProductDetailPage() {
             <span>{product.sku}</span>
             {product.brand && <span>· {product.brand}</span>}
             <span>· {product.categoryName}</span>
-            <Badge variant={product.condition === 'used' ? 'secondary' : 'outline'}>
-              {PRODUCT_CONDITION_LABELS[product.condition]}
-            </Badge>
             {product.archivedAt && <Badge variant="destructive">ซ่อนอยู่</Badge>}
           </div>
+          {/* Discount and "awaiting price" are already shown by the PriceTag below. */}
+          <ProductTags product={product} hide={['discount', 'awaitingPrice']} className="mt-2" />
         </div>
         <div className="flex flex-wrap gap-2">
           {user.can('product.editDetails') && (
@@ -202,6 +203,12 @@ export function ProductDetailPage() {
                 <Pencil />
                 แก้ไข
               </Link>
+            </Button>
+          )}
+          {user.can('tag.manage') && (
+            <Button variant="outline" onClick={() => setTagsOpen(true)}>
+              <Tags />
+              แท็ก
             </Button>
           )}
           {user.can('product.editPricing') && (
@@ -311,6 +318,7 @@ export function ProductDetailPage() {
       </div>
 
       {pricingOpen && <PricingDialog product={product} onClose={() => setPricingOpen(false)} />}
+      {tagsOpen && <ProductTagsDialog product={product} onClose={() => setTagsOpen(false)} />}
     </div>
   );
 }

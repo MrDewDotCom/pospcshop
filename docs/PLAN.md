@@ -663,6 +663,10 @@ sold ──warranty claim (Phase 5)──→ in_claim → sold (same unit back) 
   | Stock          | "หมด" / "ใกล้หมด"                                         | `on_hand` vs. `min_stock`           |
   | Awaiting price | "รอตั้งราคา"                                              | `price_satang IS NULL`              |
 - **Custom tags:** the owner creates them (name + color) in settings and assigns them to products, e.g. "Open box", "กล่องไม่สวย", "ไม่มีกล่อง", "สินค้าแนะนำ".
+  Archiving a tag hides it everywhere but keeps its assignments, so showing it again restores it on the same products.
+  An archived tag can't be newly assigned.
+- **API shape:** every product response (list, detail, lookup) carries `tags` (custom, active only) and `autoTags`
+  (`{ key, label, tone }`, derived on the server by `deriveAutoTags`). The UI maps tones and tag colors to its own classes.
 - **Unit-level badges** in the serial list: status ("คืนแล้ว – รอตรวจสอบ", "อยู่ระหว่างเคลม") and "เคยถูกคืน".
 - **Shown on:** product list, product detail, phone stock lookup, POS search results and cart, and the build part picker. Warranty and discount also appear on receipts.
 - Tags are filterable in the product list (e.g. show all "มือสอง" or all "-X%").
@@ -751,7 +755,7 @@ lists return `{ items, total }` and accept `?page=&pageSize=&q=`.
 | GET            | /uploads/:path                                | session required                                                                                                                                                                      |
 | GET/POST/PATCH | /categories · /categories/:id                 | POST/PATCH 🔒                                                                                                                                                                         |
 | POST           | /categories/:id/archive 🔒                    |                                                                                                                                                                                       |
-| GET/POST/PATCH | /tags · /tags/:id                             | POST/PATCH 🔒                                                                                                                                                                         |
+| GET/POST/PATCH | /tags · /tags/:id                             | POST/PATCH 🔒; also `POST /tags/:id/archive · /unarchive` and `PUT /tags/order` 🔒                                                                                                    |
 | GET            | /products (c)                                 | `q`, `categoryId`, `condition`, `tagId`, `discounted`, `stock=low\|out\|in`, `sort`, `status=active\|awaitingPrice\|archived` (`low` = 0 < on hand ≤ min, so it never overlaps `out`) |
 | GET            | /products/lookup?code= (c)                    | exact barcode/SKU/serial match (scanners)                                                                                                                                             |
 | GET            | /products/:id (c)                             | includes derived tags                                                                                                                                                                 |
