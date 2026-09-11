@@ -329,14 +329,15 @@ export function createGoodsReceipt(
         supplierWarrantyExpiresAt: warrantyExpiresAt,
       };
       // A unit that went back out through a voided receipt comes in again on its existing row.
-      const comingBack = serials.length ? returnedUnits(tx, product.id, serials) : [];
-      for (const unit of comingBack) {
+      const { reuse, fresh } = stockService.splitInboundSerials(tx, product.id, serials, [
+        'returned_to_supplier',
+      ]);
+      for (const unit of reuse) {
         tx.update(serialItems)
           .set({ ...unitData, receivedAt: now })
           .where(eq(serialItems.id, unit.id))
           .run();
       }
-      const comingBackKeys = new Set(comingBack.map((u) => u.serialNo.toUpperCase()));
       stockService.move(tx, {
         productId: product.id,
         qtyChange: line.qty,
@@ -344,12 +345,8 @@ export function createGoodsReceipt(
         ref: { type: 'goods_receipt', id: receipt.id, docNo },
         unitCostSatang: unitCost,
         userId: actor.id,
-        newSerials: serials
-          .filter((serialNo) => !comingBackKeys.has(serialNo.toUpperCase()))
-          .map((serialNo) => ({ serialNo, ...unitData })),
-        serials: comingBack.length
-          ? { ids: comingBack.map((u) => u.id), status: 'in_stock' }
-          : undefined,
+        newSerials: fresh.map((serialNo) => ({ serialNo, ...unitData })),
+        serials: reuse.length ? { ids: reuse.map((u) => u.id), status: 'in_stock' } : undefined,
         now,
       });
       totalCost += lineTotal;
@@ -370,24 +367,6 @@ export function createGoodsReceipt(
     return receipt.id;
   });
   return getGoodsReceipt(db, id);
-}
-
-/** Existing units of this product with these serials that left through a voided receipt. */
-function returnedUnits(tx: DbOrTx, productId: number, serials: string[]) {
-  return tx
-    .select({ id: serialItems.id, serialNo: serialItems.serialNo })
-    .from(serialItems)
-    .where(
-      and(
-        eq(serialItems.productId, productId),
-        eq(serialItems.status, 'returned_to_supplier'),
-        inArray(
-          sql`upper(${serialItems.serialNo})`,
-          serials.map((s) => s.toUpperCase()),
-        ),
-      ),
-    )
-    .all();
 }
 
 function loadPostedReceipt(tx: DbOrTx, id: number) {

@@ -18,6 +18,9 @@ import { PhoneAccessPage } from '@/features/settings/PhoneAccess';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
 import { ShopSettingsPage } from '@/features/settings/ShopSettingsPage';
 import { SetupPage } from '@/features/setup/SetupPage';
+import { StockAdjustPage } from '@/features/stock/StockAdjustPage';
+import { StockLookupPage } from '@/features/stock/StockLookupPage';
+import { StockMovementsPage } from '@/features/stock/StockMovementsPage';
 import { SuppliersPage } from '@/features/suppliers/SuppliersPage';
 import { TagsPage } from '@/features/tags/TagsPage';
 import { AuditLogPage } from '@/features/users/AuditLogPage';
@@ -52,6 +55,9 @@ export const router = createBrowserRouter([
               { path: 'receiving', element: <ReceivingListPage /> },
               { path: 'receiving/new', element: <ReceivingFormPage /> },
               { path: 'receiving/:id', element: <ReceivingDetailPage /> },
+              { path: 'stock/lookup', element: <StockLookupPage /> },
+              { path: 'stock/movements', element: <StockMovementsPage /> },
+              { path: 'stock/adjust', element: <StockAdjustPage /> },
               {
                 path: 'settings',
                 element: <SettingsLayout />,

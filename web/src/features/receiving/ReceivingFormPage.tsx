@@ -1,21 +1,11 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import {
-  ArrowLeft,
-  ArrowRight,
-  PackagePlus,
-  Plus,
-  ScanBarcode,
-  Search,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, PackagePlus, Plus, Trash2 } from 'lucide-react';
 import { cn } from 'cn';
 import {
   MAX_RECEIPT_LINE_QTY,
   formatBaht,
-  normalizeScannedCode,
   parseBahtInput,
   type CreateGoodsReceiptInput,
   type ProductListItem,
@@ -30,7 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -53,11 +42,11 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { FormAlert } from '@/components/FormAlert';
 import { PageHeader } from '@/components/PageHeader';
-import { errorMessage } from '@/lib/api';
+import { SerialScanner } from '@/components/SerialScanner';
 import { formatMoney } from '@/lib/format';
 import { useCurrentUser } from '@/features/auth/queries';
 import { ProductThumb } from '@/features/products/ProductsPage';
-import { lookupProductCode, useProducts } from '@/features/products/queries';
+import { StockProductPicker } from '@/features/products/StockProductPicker';
 import { useSupplierOptions } from '@/features/suppliers/queries';
 import { SupplierDialog } from '@/features/suppliers/SuppliersPage';
 import { useCreateGoodsReceipt } from './queries';
@@ -95,218 +84,7 @@ function lineCost(line: DraftLine): number | null {
   return line.costText.trim() === '' ? null : parseBahtInput(line.costText);
 }
 
-// ---------- product search / scan ----------
-
-/**
- * Type to search, or scan a barcode: Enter does an exact barcode/SKU lookup (with the Thai-layout fix
- * on the server) and adds the product straight away.
- */
-function ProductAdder({ onAdd }: { onAdd: (product: ProductListItem) => void }) {
-  const [text, setText] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [open, setOpen] = useState(false);
-  const [looking, setLooking] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(text.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [text]);
-  const { data } = useProducts({ q: debounced || undefined, pageSize: 8, status: 'active' });
-  const results = debounced ? (data?.items ?? []) : [];
-
-  const add = (product: ProductListItem) => {
-    if (!product.trackStock) {
-      toast.error(`สินค้า "${product.name}" ไม่ได้นับสต็อก รับเข้าไม่ได้`);
-      return;
-    }
-    onAdd(product);
-    setText('');
-    setDebounced('');
-    setOpen(false);
-  };
-
-  const onEnter = async () => {
-    const code = text.trim();
-    if (!code) return;
-    setLooking(true);
-    try {
-      const found = await lookupProductCode(code);
-      if (found?.matchedBy === 'serial') {
-        toast.error(`ซีเรียล ${found.code} มีอยู่ในระบบแล้ว (${found.product.name})`);
-      } else if (found) {
-        add(found.product);
-      } else if (results.length === 1) {
-        add(results[0]!);
-      } else {
-        setOpen(true);
-        if (results.length === 0) toast.error(`ไม่พบสินค้ารหัส "${code}"`);
-      }
-    } catch (error) {
-      toast.error(errorMessage(error));
-    } finally {
-      setLooking(false);
-      inputRef.current?.focus();
-    }
-  };
-
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        ref={inputRef}
-        value={text}
-        onChange={(event) => {
-          setText(event.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            void onEnter();
-          }
-          if (event.key === 'Escape') setOpen(false);
-        }}
-        placeholder="สแกนบาร์โค้ด หรือพิมพ์ชื่อ/รหัสสินค้าเพื่อเพิ่ม"
-        aria-label="เพิ่มสินค้า"
-        className="h-11 pr-10 pl-9 text-base"
-        autoComplete="off"
-        autoFocus
-        disabled={looking}
-      />
-      <ScanBarcode className="pointer-events-none absolute top-1/2 right-3 size-5 -translate-y-1/2 text-muted-foreground" />
-      {open && debounced && (
-        <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-96 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
-          {results.length === 0 && (
-            <p className="px-3 py-2 text-sm text-muted-foreground">
-              ไม่พบสินค้า — ถ้าเป็นสินค้าใหม่{' '}
-              <Link
-                to="/products/new"
-                target="_blank"
-                className="text-primary underline"
-                onMouseDown={(event) => event.preventDefault()}
-              >
-                เพิ่มสินค้าใหม่
-              </Link>{' '}
-              ก่อน แล้วค้นหาอีกครั้ง
-            </p>
-          )}
-          {results.map((product) => (
-            <button
-              key={product.id}
-              type="button"
-              // Keep focus in the input so the list doesn't close before the click lands.
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => add(product)}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left hover:bg-accent',
-                !product.trackStock && 'opacity-50',
-              )}
-            >
-              <ProductThumb url={product.thumbUrl} className="size-9" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{product.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {product.sku}
-                  {product.trackStock
-                    ? ` · คงเหลือ ${product.onHand.toLocaleString('th-TH')}`
-                    : ' · ไม่นับสต็อก'}
-                </div>
-              </div>
-              {product.serialRequired && <Badge variant="secondary">มีซีเรียล</Badge>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ---------- one line ----------
-
-function SerialScanner({
-  line,
-  inputRef,
-  onChange,
-}: {
-  line: DraftLine;
-  inputRef: (el: HTMLInputElement | null) => void;
-  onChange: (serials: string[]) => void;
-}) {
-  const [text, setText] = useState('');
-
-  /** Adds serials, skipping ones already scanned on this line (case-insensitive). */
-  const addSerials = (raw: string[]) => {
-    const next = [...line.serials];
-    const seen = new Set(next.map((s) => s.toUpperCase()));
-    for (const value of raw) {
-      const serial = normalizeScannedCode(value);
-      if (!serial) continue;
-      if (seen.has(serial.toUpperCase())) {
-        toast.error(`ซีเรียล ${serial} สแกนไปแล้ว`);
-        continue;
-      }
-      seen.add(serial.toUpperCase());
-      next.push(serial);
-    }
-    onChange(next);
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    addSerials([text]);
-    setText('');
-  };
-
-  // Pasting a list (one serial per line) adds them all at once.
-  const onPaste = (event: ClipboardEvent<HTMLInputElement>) => {
-    const pasted = event.clipboardData.getData('text');
-    if (!/[\r\n\t]/.test(pasted.trim())) return;
-    event.preventDefault();
-    addSerials(pasted.split(/[\r\n\t]+/));
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <Input
-          ref={inputRef}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-          placeholder="สแกนซีเรียลทีละชิ้น (กด Enter)"
-          aria-label={`สแกนซีเรียล ${line.product.name}`}
-          className="font-mono"
-          autoComplete="off"
-        />
-        <span className="shrink-0 text-sm font-medium tabular-nums">
-          สแกนแล้ว {line.serials.length} ชิ้น
-        </span>
-      </div>
-      {line.serials.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {line.serials.map((serial) => (
-            <Badge key={serial} variant="outline" className="gap-1 pr-1 font-mono font-normal">
-              {serial}
-              <button
-                type="button"
-                aria-label={`ลบซีเรียล ${serial}`}
-                className="rounded-full p-0.5 hover:bg-muted"
-                onClick={() => onChange(line.serials.filter((s) => s !== serial))}
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function LineCard({
   line,
@@ -402,7 +180,8 @@ function LineCard({
         {product.serialRequired && (
           <div className="sm:pl-8">
             <SerialScanner
-              line={line}
+              serials={line.serials}
+              label={product.name}
               inputRef={serialInputRef}
               onChange={(serials) => onChange({ serials })}
             />
@@ -651,7 +430,7 @@ export function ReceivingFormPage() {
       </Card>
 
       <div className="mb-3">
-        <ProductAdder onAdd={addProduct} />
+        <StockProductPicker onAdd={addProduct} />
       </div>
 
       <div className="flex flex-col gap-3">

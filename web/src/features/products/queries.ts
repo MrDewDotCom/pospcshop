@@ -34,6 +34,7 @@ export function useProduct(id: number) {
   return useQuery({
     queryKey: [...productsKey, 'detail', id],
     queryFn: () => api.get<Product>(`/api/products/${id}`),
+    enabled: Number.isInteger(id) && id > 0,
   });
 }
 

@@ -12,13 +12,16 @@ import { categoryRoutes } from './modules/categories/routes';
 import { fileRoutes } from './modules/files/routes';
 import { goodsReceiptRoutes } from './modules/goods-receipts/routes';
 import { productRoutes } from './modules/products/routes';
+import { serialRoutes } from './modules/serials/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { setupRoutes } from './modules/setup/routes';
+import { stockRoutes } from './modules/stock/routes';
 import { supplierRoutes } from './modules/suppliers/routes';
 import { systemRoutes } from './modules/system/routes';
 import { tagRoutes } from './modules/tags/routes';
 import { userRoutes } from './modules/users/routes';
 import { ensureDefaultSequences } from './services/numbering.service';
+import { findStockMismatches } from './services/stock.service';
 import { authPlugin } from './plugins/auth';
 import { registerErrorHandler } from './plugins/errors';
 
@@ -72,6 +75,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(productRoutes);
   await app.register(supplierRoutes);
   await app.register(goodsReceiptRoutes);
+  await app.register(stockRoutes);
+  await app.register(serialRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {
@@ -95,6 +100,15 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 /** Entry point shared by the CLI (main.ts) and, later, the Electron main process. */
 export async function startServer(options: StartOptions): Promise<FastifyInstance> {
   const app = await buildApp(options);
+  // The on_hand cache must agree with the ledger (PLAN.md §5 step 4). A mismatch means a bug or a
+  // manual DB edit; the owner can see details at GET /api/stock/integrity.
+  const mismatches = findStockMismatches(options.database.db);
+  if (mismatches.length > 0) {
+    app.log.warn(
+      { mismatches },
+      `Stock integrity: ${mismatches.length} product(s) disagree with the ledger`,
+    );
+  }
   await app.listen({ host: options.host ?? '0.0.0.0', port: options.port ?? 3300 });
   return app;
 }

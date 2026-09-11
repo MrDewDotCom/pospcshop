@@ -32,6 +32,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'goods_receipt.create': 'รับสินค้าเข้า',
   'goods_receipt.cost_verify': 'ตรวจสอบ/แก้ไขต้นทุนใบรับสินค้า',
   'goods_receipt.void': 'ยกเลิกใบรับสินค้า',
+  'stock.adjust': 'ปรับสต็อก',
 };
 
 export function auditActionLabel(action: string): string {

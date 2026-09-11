@@ -37,8 +37,8 @@ export interface StockMoveInput {
   /** Positive = into sellable stock, negative = out of it. Never 0. */
   qtyChange: number;
   type: StockMovementType;
-  /** The document that caused the movement. */
-  ref?: { type: string; id: number; docNo?: string | null };
+  /** The document that caused the movement (adjustments have a doc number but no row of their own). */
+  ref?: { type: string; id?: number | null; docNo?: string | null };
   unitCostSatang?: number | null;
   /** Required by callers for adjustments and voids. */
   reason?: string | null;
@@ -180,6 +180,36 @@ export function move(tx: Tx, input: StockMoveInput): StockMoveResult {
 
   tx.update(products).set({ onHand: balanceAfter }).where(eq(products.id, productId)).run();
   return { movementId: movement.id, balanceAfter, serialIds };
+}
+
+/**
+ * Splits inbound serial numbers into units that already exist on a row in one of `reusable` statuses
+ * (they come back in on that row — one physical unit keeps one row for life) and brand-new serials.
+ * Anything else that already exists is left in `fresh`, so move() rejects it as SERIAL_EXISTS.
+ */
+export function splitInboundSerials(
+  tx: Tx,
+  productId: number,
+  serialNos: string[],
+  reusable: SerialStatus[],
+): { reuse: { id: number; serialNo: string }[]; fresh: string[] } {
+  if (serialNos.length === 0) return { reuse: [], fresh: [] };
+  const reuse = tx
+    .select({ id: serialItems.id, serialNo: serialItems.serialNo })
+    .from(serialItems)
+    .where(
+      and(
+        eq(serialItems.productId, productId),
+        inArray(serialItems.status, reusable),
+        inArray(
+          sql`upper(${serialItems.serialNo})`,
+          serialNos.map((s) => s.toUpperCase()),
+        ),
+      ),
+    )
+    .all();
+  const reused = new Set(reuse.map((u) => u.serialNo.toUpperCase()));
+  return { reuse, fresh: serialNos.filter((s) => !reused.has(s.toUpperCase())) };
 }
 
 function assertNewSerialsFree(tx: Tx, productId: number, label: string, units: NewSerialUnit[]) {

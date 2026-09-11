@@ -41,6 +41,8 @@ function useReceiptMutation<T>(mutationFn: (input: T) => Promise<GoodsReceipt>) 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: receiptsKey }),
         queryClient.invalidateQueries({ queryKey: ['products'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock'] }),
+        queryClient.invalidateQueries({ queryKey: ['serials'] }),
       ]);
     },
   });

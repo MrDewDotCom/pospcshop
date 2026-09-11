@@ -1,9 +1,19 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { ArrowLeft, Eye, EyeOff, ImageOff, Pencil, Tag, Tags } from 'lucide-react';
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  ImageOff,
+  Pencil,
+  SlidersHorizontal,
+  Tag,
+  Tags,
+} from 'lucide-react';
 import { cn } from 'cn';
 import {
+  SERIAL_STATUS_LABELS,
   formatSpecs,
   formatWarranty,
   formatWarrantyPeriod,
@@ -29,6 +39,8 @@ import { ProductTags } from '@/components/ProductTags';
 import { errorMessage } from '@/lib/api';
 import { formatMoney, useFormat } from '@/lib/format';
 import { useCurrentUser } from '@/features/auth/queries';
+import { MovementTable } from '@/features/stock/MovementTable';
+import { useProductSerials, useStockMovements } from '@/features/stock/queries';
 import { PricingDialog } from './PricingDialog';
 import { ProductTagsDialog } from './ProductTagsDialog';
 import { StockText } from './ProductsPage';
@@ -112,6 +124,89 @@ function PriceHistoryCard({ productId }: { productId: number }) {
             </li>
           ))}
         </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SerialsCard({ productId }: { productId: number }) {
+  const { data: units, isPending } = useProductSerials(productId);
+  const format = useFormat();
+  const [showAll, setShowAll] = useState(false);
+  const inStock = units?.filter((u) => u.status === 'in_stock') ?? [];
+  const visible = showAll ? (units ?? []) : inStock;
+  return (
+    <Card className="mt-4">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+        <CardTitle>ซีเรียล · พร้อมขาย {inStock.length} ชิ้น</CardTitle>
+        {units && units.length > inStock.length && (
+          <Button variant="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? 'แสดงเฉพาะที่พร้อมขาย' : `แสดงทั้งหมด (${units.length})`}
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {isPending && <p className="text-sm text-muted-foreground">กำลังโหลด…</p>}
+        {units && visible.length === 0 && (
+          <p className="text-sm text-muted-foreground">ไม่มีชิ้นที่พร้อมขาย</p>
+        )}
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((unit) => (
+            <li key={unit.id} className="flex flex-col gap-1 rounded-md border px-3 py-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="font-mono text-sm">{unit.serialNo}</span>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    unit.status === 'in_stock'
+                      ? 'border-green-200 bg-green-50 text-green-700'
+                      : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {SERIAL_STATUS_LABELS[unit.status]}
+                </Badge>
+                {unit.wasReturned && (
+                  <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                    เคยถูกคืน
+                  </Badge>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                รับเข้า {format.date(unit.receivedAt)}
+                {unit.supplierWarrantyExpiresAt &&
+                  ` · ประกันผู้จำหน่ายถึง ${format.date(unit.supplierWarrantyExpiresAt)}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentMovementsCard({ productId }: { productId: number }) {
+  const user = useCurrentUser();
+  const { data, isPending, error } = useStockMovements({ productId, pageSize: 10 });
+  return (
+    <Card className="mt-4">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+        <CardTitle>ความเคลื่อนไหวสต็อกล่าสุด</CardTitle>
+        {data && data.total > data.items.length && (
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={`/stock/movements?productId=${productId}`}>
+              ดูทั้งหมด ({data.total.toLocaleString('th-TH')})
+            </Link>
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <MovementTable
+          items={data?.items}
+          isPending={isPending}
+          error={error}
+          showProduct={false}
+          showCost={user.can('cost.view')}
+        />
       </CardContent>
     </Card>
   );
@@ -217,6 +312,14 @@ export function ProductDetailPage() {
               ตั้งราคา
             </Button>
           )}
+          {user.can('stock.adjust') && product.trackStock && !product.archivedAt && (
+            <Button variant="outline" asChild>
+              <Link to={`/stock/adjust?productId=${product.id}`}>
+                <SlidersHorizontal />
+                ปรับสต็อก
+              </Link>
+            </Button>
+          )}
           {user.can('product.archive') && <ArchiveButton product={product} />}
         </div>
       </div>
@@ -316,6 +419,9 @@ export function ProductDetailPage() {
           <PriceHistoryCard productId={product.id} />
         </div>
       </div>
+
+      {product.serialRequired && <SerialsCard productId={product.id} />}
+      {product.trackStock && <RecentMovementsCard productId={product.id} />}
 
       {pricingOpen && <PricingDialog product={product} onClose={() => setPricingOpen(false)} />}
       {tagsOpen && <ProductTagsDialog product={product} onClose={() => setTagsOpen(false)} />}
