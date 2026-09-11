@@ -152,10 +152,21 @@ function loadSession(
   }
 }
 
+const PERMISSION_TAG = Symbol('permission');
+
 /** preHandler that allows the request only if the user's role has `permission`. */
 export function requirePermission(permission: Permission): preHandlerAsyncHookHandler {
-  return async (request) => {
+  const handler: preHandlerAsyncHookHandler = async (request) => {
     if (!request.user) throw unauthorized();
     if (!can(request.user.role, permission)) throw forbidden();
   };
+  // Tagged so the route table (app.routeTable) knows which permission guards each route.
+  return Object.assign(handler, { [PERMISSION_TAG]: permission });
+}
+
+/** The permission a route-level preHandler created by requirePermission() checks, if any. */
+export function permissionOf(handler: unknown): Permission | null {
+  return (
+    ((handler as { [PERMISSION_TAG]?: Permission } | null)?.[PERMISSION_TAG] as Permission) ?? null
+  );
 }

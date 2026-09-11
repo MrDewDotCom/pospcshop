@@ -731,6 +731,10 @@ sold ──warranty claim (Phase 5)──→ in_claim → sold (same unit back) 
 2. Routes respond via `respondByRole(req, { owner, staff }, data)`, which `parse`s with the role's schema. Zod strips unknown keys, so **forgetting a field in a schema means it isn't sent**, which is the safe failure.
 3. Forbidden keys are listed in `shared/permissions.ts`: `costSatang`, `unitCostSatang`, `totalCostSatang`, `lineCostSatang`, `profitSatang`, `marginBp`, `inventoryValueSatang` …
 4. **Integration test:** seed every entity type → log in as staff → call every registered GET route (enumerated from Fastify automatically) → recursively scan each JSON response for forbidden keys. A new route that fails means the build fails.
+   Implemented in `server/test/no-cost-leak.test.ts`: routes come from `app.routeTable` (filled by an `onRoute` hook); routes with params
+   must have a fixture, staff must get 200 or 403, and the owner must see cost on the routes that carry it (proving the scan had
+   something to catch). `server/test/no-money-write.test.ts` walks every route's Zod body schema: a `…Satang` field is allowed only on
+   owner-only routes or documented exceptions (staff goods receipts, staff product creation whose `pricing` is refused).
 5. **Money fields on input (Q7):** product money fields exist only in the owner-only pricing endpoint. The product-update schema is `.strict()` and has no money keys at all, so `priceSatang`/`costSatang`/… are rejected with 400 for everyone; a staff update that touches an owner-only field (name, SKU, warranty, …) is rejected with 403 `FORBIDDEN_FIELDS`. Staff may send only `description` and `specs`. There are tests for this.
 6. Indirect leaks to close: sorting/filtering by cost, the dashboard, stock movement history, goods-receipt details, backup downloads (all owner-only), post data (selling/regular price only), error messages, and the cost-review status (staff may see "unverified" but never the values)
 

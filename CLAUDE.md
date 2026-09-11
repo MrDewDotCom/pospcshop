@@ -81,9 +81,12 @@ TypeScript everywhere. npm workspaces: `shared/`, `server/`, `web/`.
    voids payments, and writes an audit log entry, all in one transaction. Master data uses `archived_at`.
 6. **Cost/profit is owner-only, enforced on the server.** Responses go through `respondByRole()` with
    separate Zod schemas per role (whitelist: the staff schema simply lacks cost fields). Forbidden keys
-   are listed in `shared/permissions.ts`. The "no cost leak" integration test calls every GET route as
-   staff; every new route must pass it. Also guard indirect leaks: sorting/filtering by cost,
-   dashboard, movement history, goods receipts, backups, post data.
+   are listed in `shared/permissions.ts`. The "no cost leak" integration test
+   (`server/test/no-cost-leak.test.ts`) calls every GET route from `app.routeTable` as staff; a new GET
+   route with params needs an entry in its `fixtures()`. The "no money write" test fails for any route
+   whose body has a `…Satang` field unless it's guarded by an owner-only `requirePermission()` preHandler
+   (route-level, so the route table sees it) or listed in `STAFF_MONEY_WRITE_EXCEPTIONS`. Also guard
+   indirect leaks: sorting/filtering by cost, dashboard, movement history, goods receipts, backups, post data.
 7. **Time.** Store UTC epoch milliseconds. Display in Asia/Bangkok (fixed UTC+7) with an optional
    Buddhist Era year, via helpers in `shared/datetime.ts`. "Today" and document-number periods use Bangkok dates.
 8. **Data dir is separate from the app dir.** Use `PCSHOP_DATA_DIR`; otherwise dev uses `./data` and prod uses

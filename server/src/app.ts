@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
-import { APP_NAME, APP_VERSION } from '@pcshop/shared';
+import { APP_NAME, APP_VERSION, type Permission } from '@pcshop/shared';
 import type { DataPaths } from './config';
 import type { DatabaseManager } from './db/client';
 import { plainJsonSerializerCompiler, zodValidatorCompiler } from './lib/zod';
@@ -22,7 +22,7 @@ import { tagRoutes } from './modules/tags/routes';
 import { userRoutes } from './modules/users/routes';
 import { ensureDefaultSequences } from './services/numbering.service';
 import { findStockMismatches } from './services/stock.service';
-import { authPlugin } from './plugins/auth';
+import { authPlugin, permissionOf } from './plugins/auth';
 import { registerErrorHandler } from './plugins/errors';
 
 declare module 'fastify' {
@@ -30,7 +30,19 @@ declare module 'fastify' {
     database: DatabaseManager;
     /** Data directory layout. Undefined in tests that don't touch the file system. */
     paths: DataPaths | undefined;
+    /** Every registered route; the security tests walk it (no cost leak, no money write). */
+    routeTable: RegisteredRoute[];
   }
+}
+
+export interface RegisteredRoute {
+  method: string;
+  url: string;
+  /** Permissions checked by route-level requirePermission() preHandlers. */
+  permissions: Permission[];
+  /** The Zod body schema, if the route validates one. */
+  bodySchema: unknown;
+  isPublic: boolean;
 }
 
 export interface AppOptions {
@@ -50,6 +62,19 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false });
   app.decorate('database', options.database);
   app.decorate('paths', options.paths);
+  app.decorate('routeTable', [] as RegisteredRoute[]);
+  app.addHook('onRoute', (route) => {
+    const preHandlers = [route.preHandler ?? []].flat();
+    for (const method of [route.method].flat()) {
+      app.routeTable.push({
+        method,
+        url: route.url,
+        permissions: preHandlers.map(permissionOf).filter((p): p is Permission => p !== null),
+        bodySchema: route.schema?.body,
+        isPublic: route.config?.public === true,
+      });
+    }
+  });
   ensureDefaultSequences(options.database.db);
 
   app.setValidatorCompiler(zodValidatorCompiler);
