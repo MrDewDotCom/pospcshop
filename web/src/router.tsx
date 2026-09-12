@@ -1,8 +1,9 @@
 import { createBrowserRouter } from 'react-router';
+import { CrashPage } from '@/components/CrashPage';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AccountPage } from '@/features/auth/AccountPage';
 import { CategoriesPage } from '@/features/categories/CategoriesPage';
-import { GuestOnly, RequireAuth, SetupGate } from '@/features/auth/guards';
+import { GuestOnly, RequireAuth, RequirePermission, SetupGate } from '@/features/auth/guards';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RecoverPage } from '@/features/auth/RecoverPage';
 import { HomePage } from '@/features/home/HomePage';
@@ -31,6 +32,8 @@ import { UsersPage } from '@/features/users/UsersPage';
 export const router = createBrowserRouter([
   {
     element: <SetupGate />,
+    // Any render error below here shows the crash screen instead of a blank page.
+    errorElement: <CrashPage />,
     children: [
       { path: '/setup', element: <SetupPage /> },
       {
@@ -52,26 +55,50 @@ export const router = createBrowserRouter([
               { path: 'products/new', element: <ProductCreatePage /> },
               { path: 'products/:id', element: <ProductDetailPage /> },
               { path: 'products/:id/edit', element: <ProductEditPage /> },
-              { path: 'categories', element: <CategoriesPage /> },
               { path: 'suppliers', element: <SuppliersPage /> },
               { path: 'receiving', element: <ReceivingListPage /> },
               { path: 'receiving/new', element: <ReceivingFormPage /> },
               { path: 'receiving/:id', element: <ReceivingDetailPage /> },
               { path: 'stock/lookup', element: <StockLookupPage /> },
               { path: 'stock/movements', element: <StockMovementsPage /> },
-              { path: 'stock/adjust', element: <StockAdjustPage /> },
+              // Owner-only screens: staff who type the URL get a "ไม่มีสิทธิ์" page, not a dead form.
+              {
+                element: <RequirePermission permission="category.manage" />,
+                children: [{ path: 'categories', element: <CategoriesPage /> }],
+              },
+              {
+                element: <RequirePermission permission="stock.adjust" />,
+                children: [{ path: 'stock/adjust', element: <StockAdjustPage /> }],
+              },
               {
                 path: 'settings',
                 element: <SettingsLayout />,
                 children: [
-                  { path: 'shop', element: <ShopSettingsPage /> },
-                  { path: 'tags', element: <TagsPage /> },
-                  { path: 'numbering', element: <NumberingPage /> },
-                  { path: 'users', element: <UsersPage /> },
-                  { path: 'backup', element: <BackupPage /> },
-                  { path: 'sample-data', element: <SampleDataPage /> },
                   { path: 'network', element: <PhoneAccessPage /> },
-                  { path: 'audit', element: <AuditLogPage /> },
+                  {
+                    element: <RequirePermission permission="settings.manage" />,
+                    children: [
+                      { path: 'shop', element: <ShopSettingsPage /> },
+                      { path: 'numbering', element: <NumberingPage /> },
+                      { path: 'sample-data', element: <SampleDataPage /> },
+                    ],
+                  },
+                  {
+                    element: <RequirePermission permission="tag.manage" />,
+                    children: [{ path: 'tags', element: <TagsPage /> }],
+                  },
+                  {
+                    element: <RequirePermission permission="users.manage" />,
+                    children: [{ path: 'users', element: <UsersPage /> }],
+                  },
+                  {
+                    element: <RequirePermission permission="backup.manage" />,
+                    children: [{ path: 'backup', element: <BackupPage /> }],
+                  },
+                  {
+                    element: <RequirePermission permission="audit.view" />,
+                    children: [{ path: 'audit', element: <AuditLogPage /> }],
+                  },
                 ],
               },
               { path: '*', element: <NotFoundPage /> },

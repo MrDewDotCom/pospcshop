@@ -38,6 +38,7 @@ import { PriceTag } from '@/components/PriceTag';
 import { ProductTags } from '@/components/ProductTags';
 import { errorMessage } from '@/lib/api';
 import { formatMoney, useFormat } from '@/lib/format';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useCurrentUser } from '@/features/auth/queries';
 import { MovementTable } from '@/features/stock/MovementTable';
 import { useProductSerials, useStockMovements } from '@/features/stock/queries';
@@ -263,6 +264,7 @@ export function ProductDetailPage() {
   const { data: product, isPending, error } = useProduct(id);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  useDocumentTitle(product?.name);
 
   if (isPending) return <p className="text-muted-foreground">กำลังโหลด…</p>;
   if (error || !product) return <p className="text-destructive">{errorMessage(error)}</p>;

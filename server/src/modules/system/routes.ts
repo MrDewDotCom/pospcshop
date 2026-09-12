@@ -1,7 +1,7 @@
 import os from 'node:os';
 import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
-import { APP_VERSION, type NetworkInfoResponse } from '@pcshop/shared';
+import { APP_VERSION, type NetworkInfoResponse, type SystemInfoResponse } from '@pcshop/shared';
 import { DEFAULT_PORT } from '../../config';
 import { listLanAddresses } from '../../lib/network';
 import { requirePermission } from '../../plugins/auth';
@@ -17,10 +17,14 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.get('/api/system/info', { preHandler: requirePermission('settings.manage') }, async () => ({
-    version: APP_VERSION,
-    dataDir: app.paths?.root ?? null,
-    node: process.version,
-    platform: `${os.type()} ${os.release()}`,
-  }));
+  app.get(
+    '/api/system/info',
+    { preHandler: requirePermission('settings.manage') },
+    async (): Promise<SystemInfoResponse> => ({
+      version: APP_VERSION,
+      dataDir: app.paths?.root ?? null,
+      node: process.version,
+      platform: `${os.type()} ${os.release()}`,
+    }),
+  );
 }

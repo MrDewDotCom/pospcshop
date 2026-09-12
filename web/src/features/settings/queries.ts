@@ -5,6 +5,7 @@ import type {
   NetworkInfoResponse,
   OwnerShopSettings,
   ShopSettings,
+  SystemInfoResponse,
   UpdateDocumentSequenceInput,
   UpdateShopSettingsInput,
 } from '@pcshop/shared';
@@ -58,5 +59,14 @@ export function useNetworkInfo() {
   return useQuery({
     queryKey: ['system', 'network'],
     queryFn: () => api.get<NetworkInfoResponse>('/api/system/network'),
+  });
+}
+
+/** Version and data directory (owner only); useful when the shop asks for support. */
+export function useSystemInfo() {
+  return useQuery({
+    queryKey: ['system', 'info'],
+    queryFn: () => api.get<SystemInfoResponse>('/api/system/info'),
+    staleTime: Infinity,
   });
 }

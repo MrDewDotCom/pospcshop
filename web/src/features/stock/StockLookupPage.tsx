@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { PriceTag } from '@/components/PriceTag';
 import { ProductTags } from '@/components/ProductTags';
 import { errorMessage } from '@/lib/api';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ProductThumb } from '@/features/products/ProductsPage';
 import { lookupProductCode, useProducts } from '@/features/products/queries';
 import { useSerialSearch } from './queries';
@@ -83,6 +84,7 @@ export function StockLookupPage() {
   const [debounced, setDebounced] = useState('');
   const [exact, setExact] = useState<ProductLookupResponse | null>(null);
   const [looking, setLooking] = useState(false);
+  useDocumentTitle('เช็คสต็อก');
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(text.trim()), 300);

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { startServer } from './app';
 import { dataPaths, ensureDataDirs, readFileConfig, resolveDataDir, resolvePort } from './config';
 import { DatabaseManager } from './db/client';
+import { openDailyLogFile } from './lib/logFile';
 import { backupBeforeMigrations } from './services/backup.service';
 
 // Replaced with true by the production build (scripts/build.mjs).
@@ -24,14 +25,21 @@ try {
   }
   const database = new DatabaseManager(paths.dbFile, migrationsFolder);
 
+  // Production has no console to watch (and none at all once Electron wraps it in Phase 7).
+  const logFile = isProduction ? openDailyLogFile(paths.logsDir) : null;
+  const port = resolvePort(readFileConfig(paths));
   const app = await startServer({
     database,
     paths,
-    port: resolvePort(readFileConfig(paths)),
+    port,
     webDistDir,
-    logger: true,
+    logger: logFile ? { level: 'info', file: logFile } : true,
   });
   app.log.info(`Data directory: ${paths.root}`);
+  // Printed, not logged: once the log goes to a file, this is all the console shows.
+  console.log(`PC Shop Manager is running: http://localhost:${port}`);
+  console.log(`Data directory: ${paths.root}`);
+  if (logFile) console.log(`Log file: ${logFile}`);
 
   // Close cleanly on Ctrl+C so SQLite checkpoints the WAL into shop.db.
   const shutdown = async () => {

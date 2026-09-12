@@ -213,6 +213,8 @@ export function ProductsPage() {
     pageSize: PAGE_SIZE,
   };
   const { data, isPending, error, isPlaceholderData } = useProducts(query);
+  /** True when a filter or search is narrowing the list, so "nothing found" means something else. */
+  const filtered = [...params.keys()].some((key) => key !== 'page' && key !== 'sort');
 
   /** Changing a filter goes back to page 1. */
   const setParam = (key: string, value: string | undefined) =>
@@ -344,7 +346,19 @@ export function ProductsPage() {
             {data?.items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columns} className="py-8 text-center text-muted-foreground">
-                  ไม่พบสินค้าที่ตรงกับเงื่อนไข
+                  {filtered ? (
+                    'ไม่พบสินค้าที่ตรงกับเงื่อนไข'
+                  ) : (
+                    <span className="flex flex-col items-center gap-3">
+                      ยังไม่มีสินค้าในระบบ
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/products/new">
+                          <Plus />
+                          เพิ่มสินค้าชิ้นแรก
+                        </Link>
+                      </Button>
+                    </span>
+                  )}
                 </TableCell>
               </TableRow>
             )}

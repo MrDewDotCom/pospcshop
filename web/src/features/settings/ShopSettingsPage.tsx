@@ -24,7 +24,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { TextAreaField, TextField } from '@/components/TextField';
 import { errorMessage, validationIssues } from '@/lib/api';
 import { LogoUploader } from './LogoUploader';
-import { useShopSettings, useUpdateSettings } from './queries';
+import { useShopSettings, useSystemInfo, useUpdateSettings } from './queries';
 
 const formSchema = shopInfoInputSchema.extend({
   receiptFooter: z.string().trim().max(500, { error: 'ยาวได้ไม่เกิน 500 ตัวอักษร' }),
@@ -197,6 +197,38 @@ function SettingsForm({ settings }: { settings: OwnerShopSettings }) {
   );
 }
 
+/** Version and data directory: what the shop should tell us when something goes wrong. */
+function SystemInfoCard() {
+  const { data } = useSystemInfo();
+  if (!data) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>เกี่ยวกับระบบ</CardTitle>
+        <CardDescription>
+          ข้อมูลสำหรับแจ้งผู้ดูแลระบบเมื่อมีปัญหา ห้ามลบหรือย้ายโฟลเดอร์ข้อมูลเอง
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-muted-foreground">เวอร์ชันโปรแกรม</dt>
+            <dd className="font-medium">{data.version}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">ระบบปฏิบัติการ</dt>
+            <dd className="font-medium">{data.platform}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-muted-foreground">โฟลเดอร์ข้อมูลของร้าน</dt>
+            <dd className="font-mono text-xs break-all">{data.dataDir ?? '—'}</dd>
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ShopSettingsPage() {
   const { data, isPending, error } = useShopSettings();
   return (
@@ -216,6 +248,7 @@ export function ShopSettingsPage() {
             </CardContent>
           </Card>
           <SettingsForm settings={data} />
+          <SystemInfoCard />
         </div>
       )}
     </div>

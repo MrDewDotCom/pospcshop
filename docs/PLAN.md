@@ -248,12 +248,16 @@ PCShopManager/
 ├── uploads/            images named by sha256, sharded by the first 2 chars: uploads/ab/abcd…ef.jpg
 ├── backups/            default backup location (configurable, e.g. D:\ or a USB drive)
 ├── backup-state.json   last successful backup (kept outside the DB because restore replaces the DB)
-└── logs/
+└── logs/               server-YYYY-MM-DD.log, one per Bangkok day, older than 14 days deleted at startup
 ```
+
+In development the log goes to the console; in production (and from Phase 7 inside Electron, where there
+is no console) Fastify writes it to today's file in `logs/`, and the console only prints the URL, the data
+directory, and the log file path.
 
 ### Startup sequence
 
-1. Resolve the data dir and create missing folders
+1. Resolve the data dir and create missing folders; open today's log file (production)
 2. Open the DB with `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`
 3. If migrations are pending and the DB already has data → **back up first**, then migrate
 4. Check stock integrity (cache vs. ledger) and log a warning on mismatch
@@ -999,4 +1003,7 @@ price, the struck-through regular price, and the "-X%" badge everywhere, and `Pr
 14. **No-cost-leak + no-money-write tests** (every route as staff)
 15. **Backup/restore:** automatic + button + restore page + tests
 16. **Seed data:** 40–60 products across every category (some discounted, some used, with tags) + clear action
-17. **Polish + Phase 1 test checklist**
+17. **Polish + Phase 1 test checklist** — crash screen instead of a blank page, per-screen browser tab
+    titles, favicon, owner-only route guards in the UI, "products awaiting price" owner to-do, an
+    "about the system" card (version + data folder), daily log files. The checklist the owner works
+    through is [PHASE1-TEST-CHECKLIST.md](PHASE1-TEST-CHECKLIST.md).

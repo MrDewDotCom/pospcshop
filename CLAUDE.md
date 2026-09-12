@@ -23,7 +23,8 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
 ## Current status
 
 - Phase 0 (planning): approved. Decisions are in PLAN.md §1.
-- Phase 1: in progress (sub-tasks in PLAN.md §15).
+- Phase 1: all 17 sub-tasks built (PLAN.md §15); awaiting the owner's sign-off after working through
+  [docs/PHASE1-TEST-CHECKLIST.md](docs/PHASE1-TEST-CHECKLIST.md). Don't start Phase 2 before that.
 - This build is a **demo** for a prospective client. Keep scope tight; tax features are deferred.
 
 ## Key product decisions (details in PLAN.md §1)

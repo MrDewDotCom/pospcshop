@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { errorMessage } from '@/lib/api';
 import { formatMoney, useFormat } from '@/lib/format';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useCurrentUser } from '@/features/auth/queries';
 import { CostStatusBadge, VoidedBadge } from './CostStatusBadge';
 import { useGoodsReceipt } from './queries';
@@ -60,6 +61,7 @@ export function ReceivingDetailPage() {
   const format = useFormat();
   const { data: receipt, isPending, error } = useGoodsReceipt(id);
   const [dialog, setDialog] = useState<'verify' | 'void' | null>(null);
+  useDocumentTitle(receipt ? `ใบรับสินค้า ${receipt.docNo}` : undefined);
 
   if (isPending) return <p className="text-muted-foreground">กำลังโหลด…</p>;
   if (error || !receipt) return <p className="text-destructive">{errorMessage(error)}</p>;

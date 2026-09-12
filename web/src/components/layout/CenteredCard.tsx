@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Monitor } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 /** Centered card used by the login, recovery, and setup screens. */
 export function CenteredCard({
@@ -14,6 +15,7 @@ export function CenteredCard({
   children: ReactNode;
   wide?: boolean;
 }) {
+  useDocumentTitle(title);
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/40 p-4">
       <div className="flex items-center gap-2 text-lg font-semibold">

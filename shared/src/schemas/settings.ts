@@ -79,3 +79,12 @@ export interface NetworkInfoResponse {
   port: number;
   addresses: NetworkAddress[];
 }
+
+/** What the owner needs when asking for support: version and where the shop's data lives. */
+export interface SystemInfoResponse {
+  version: string;
+  /** The data directory, or null when the server runs without one (tests). */
+  dataDir: string | null;
+  node: string;
+  platform: string;
+}

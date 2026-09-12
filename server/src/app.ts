@@ -55,7 +55,8 @@ export interface AppOptions {
   paths?: DataPaths;
   /** Absolute path to the built web app (web/dist). When null, the frontend is served by Vite (dev). */
   webDistDir?: string | null;
-  logger?: boolean;
+  /** true = console (dev). `{ file }` writes to the data directory's log file (production). */
+  logger?: boolean | { level?: string; file?: string };
 }
 
 export interface StartOptions extends AppOptions {

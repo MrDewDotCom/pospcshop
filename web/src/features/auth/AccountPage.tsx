@@ -8,12 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup } from '@/components/ui/field';
 import { FormAlert } from '@/components/FormAlert';
 import { TextField } from '@/components/TextField';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useChangePassword, useCurrentUser } from './queries';
 
 export function AccountPage() {
   const user = useCurrentUser();
   const changePassword = useChangePassword();
   const minLength = minPasswordLength(user.role);
+  useDocumentTitle('บัญชีของฉัน');
 
   const formSchema = changePasswordInputSchema
     .extend({ confirmPassword: z.string() })
