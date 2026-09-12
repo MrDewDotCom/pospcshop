@@ -3,20 +3,35 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DatabaseManager } from '../src/db/client';
-import { categories, products, serialItems, users } from '../src/db/schema';
+import {
+  categories,
+  payments,
+  products,
+  saleItems,
+  sales,
+  serialItems,
+  users,
+} from '../src/db/schema';
 import { MIGRATIONS_FOLDER, createTestDatabase } from './helpers';
 
 const EXPECTED_TABLES = [
   'audit_logs',
   'categories',
+  'customers',
   'document_sequences',
   'files',
   'goods_receipt_items',
   'goods_receipts',
+  'payments',
   'product_images',
   'product_price_history',
   'product_tags',
   'products',
+  'sale_item_serials',
+  'sale_items',
+  'sale_return_items',
+  'sale_returns',
+  'sales',
   'serial_items',
   'sessions',
   'shop_settings',
@@ -46,7 +61,7 @@ describe('database', () => {
   const open = (db: DatabaseManager) => (opened.push(db), db);
   afterEach(() => opened.splice(0).forEach((db) => db.close()));
 
-  it('creates every Phase 1 table through migrations', () => {
+  it('creates every table through migrations', () => {
     const database = open(createTestDatabase());
     const rows = database.sqlite
       .prepare(
@@ -79,6 +94,58 @@ describe('database', () => {
       database.db
         .insert(products)
         .values({ sku: 'NEG', name: 'Neg', categoryId: category.id, priceSatang: -1 })
+        .run(),
+    ).toThrow(/CHECK/);
+  });
+
+  it('guards the sale tables: positive qty, non-negative money, returns within the sold qty', () => {
+    const database = open(createTestDatabase());
+    const { product } = seedBasics(database);
+    const sale = database.db
+      .insert(sales)
+      .values({ docNo: 'RC6909-0001', soldAt: Date.now(), totalSatang: 100_00 })
+      .returning()
+      .all()[0]!;
+    const line = {
+      saleId: sale.id,
+      productId: product.id,
+      nameSnapshot: 'Ryzen 5 7600',
+      qty: 2,
+      unitPriceSatang: 50_00,
+      lineTotalSatang: 100_00,
+    };
+    database.db.insert(saleItems).values(line).run();
+
+    expect(() =>
+      database.db
+        .insert(saleItems)
+        .values({ ...line, qty: 0 })
+        .run(),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      database.db
+        .insert(saleItems)
+        .values({ ...line, unitPriceSatang: -1 })
+        .run(),
+    ).toThrow(/CHECK/);
+    // A line can never be returned more times than it was sold.
+    expect(() =>
+      database.db
+        .insert(saleItems)
+        .values({ ...line, returnedQty: 3 })
+        .run(),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      database.db
+        .insert(payments)
+        // @ts-expect-error — deliberately invalid payment method to prove the DB rejects it
+        .values({
+          saleId: sale.id,
+          method: 'card',
+          amountSatang: 100_00,
+          receivedSatang: 100_00,
+          paidAt: Date.now(),
+        })
         .run(),
     ).toThrow(/CHECK/);
   });

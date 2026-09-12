@@ -133,3 +133,60 @@ export type DocType = (typeof DOC_TYPES)[number];
 
 export const SEQUENCE_RESET_POLICIES = ['never', 'yearly', 'monthly'] as const;
 export type SequenceResetPolicy = (typeof SEQUENCE_RESET_POLICIES)[number];
+
+// ---------- Phase 2: sales, payments, returns ----------
+
+/** Every sale is fully paid at checkout (Q9), so there is no "unpaid" state. */
+export const SALE_STATUSES = ['paid', 'voided'] as const;
+export type SaleStatus = (typeof SALE_STATUSES)[number];
+export const SALE_STATUS_LABELS: Record<SaleStatus, string> = {
+  paid: 'ชำระเงินแล้ว',
+  voided: 'ยกเลิกแล้ว',
+};
+
+/** Where the sale came from. Quotes arrive in Phase 3, repairs in Phase 5. */
+export const SALE_SOURCES = ['pos', 'quote', 'repair'] as const;
+export type SaleSource = (typeof SALE_SOURCES)[number];
+
+/** `build` lines arrive in Phase 3 (P23: the column ships now so the table never has to change). */
+export const SALE_ITEM_KINDS = ['product', 'build', 'service'] as const;
+export type SaleItemKind = (typeof SALE_ITEM_KINDS)[number];
+
+/** `trade_in_credit` is reserved for Phase 3/6 (P5) and is never chosen by hand. */
+export const PAYMENT_METHODS = ['cash', 'transfer', 'trade_in_credit'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'เงินสด',
+  transfer: 'โอน/พร้อมเพย์',
+  trade_in_credit: 'เครดิตจากการเทิร์นสินค้า',
+};
+
+/** Methods the user can pick at checkout (trade-in credit is system-only). */
+export const CHECKOUT_PAYMENT_METHODS = ['cash', 'transfer'] as const;
+export type CheckoutPaymentMethod = (typeof CHECKOUT_PAYMENT_METHODS)[number];
+
+export const REFUND_METHODS = ['none', 'cash', 'transfer'] as const;
+export type RefundMethod = (typeof REFUND_METHODS)[number];
+export const REFUND_METHOD_LABELS: Record<RefundMethod, string> = {
+  none: 'ไม่คืนเงิน',
+  cash: 'คืนเป็นเงินสด',
+  transfer: 'คืนโดยโอน',
+};
+
+/**
+ * What happened to a returned unit (Q8/P16). It starts `pending` (quarantine, not sellable) and only an
+ * explicit decision moves it on.
+ */
+export const RETURN_DISPOSITIONS = [
+  'pending',
+  'restocked',
+  'sent_to_claim',
+  'written_off',
+] as const;
+export type ReturnDisposition = (typeof RETURN_DISPOSITIONS)[number];
+export const RETURN_DISPOSITION_LABELS: Record<ReturnDisposition, string> = {
+  pending: 'รอตรวจสอบ',
+  restocked: 'คืนเข้าสต็อกแล้ว',
+  sent_to_claim: 'ส่งเคลมแล้ว',
+  written_off: 'ตัดจำหน่ายแล้ว',
+};

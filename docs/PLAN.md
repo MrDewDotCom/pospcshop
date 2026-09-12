@@ -503,14 +503,15 @@ erDiagram
 
 **sale_returns** (return document)
 
-| Column                 | Notes                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| id, doc_no (unique)    | e.g. `RT6909-0001`                                                                          |
-| sale_id                | the original receipt                                                                        |
-| returned_at, reason    | reason required (e.g. เสีย, ไม่ตรงสเปก, เปลี่ยนใจ)                                          |
-| refund                 | `none` \| `cash` \| `transfer`                                                              |
-| refund_satang          | defaults to what the customer paid for the returned lines; **only the owner can change it** |
-| created_by, created_at |                                                                                             |
+| Column                                 | Notes                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| id, doc_no (unique)                    | e.g. `RT6909-0001`                                                                          |
+| sale_id                                | the original receipt                                                                        |
+| returned_at, reason                    | reason required (e.g. เสีย, ไม่ตรงสเปก, เปลี่ยนใจ)                                          |
+| refund                                 | `none` \| `cash` \| `transfer`                                                              |
+| refund_satang                          | defaults to what the customer paid for the returned lines; **only the owner can change it** |
+| refund_adjusted_by, refund_adjusted_at | set when the owner overrides the amount through `PATCH /returns/:id/refund` (P21)           |
+| created_by, created_at                 |                                                                                             |
 
 **sale_return_items**
 
@@ -519,6 +520,8 @@ erDiagram
 | id, return_id, sale_item_id, product_id   |                                                                                                 |
 | qty                                       | ≤ sold qty − already returned qty                                                               |
 | serial_item_id (nullable)                 | required for serial products                                                                    |
+| refund_satang                             | this line's share of the refund, from the sale's snapshot                                       |
+| unit_cost_satang                          | owner only: the cost that comes back out of profit when the line is returned                    |
 | disposition                               | `pending` (status "Returned", in quarantine) \| `restocked` \| `sent_to_claim` \| `written_off` |
 | resolved_at, resolved_by, resolution_note |                                                                                                 |
 
