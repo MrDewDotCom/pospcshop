@@ -23,8 +23,10 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
 ## Current status
 
 - Phase 0 (planning): approved. Decisions are in PLAN.md §1.
-- Phase 1: all 17 sub-tasks built (PLAN.md §15); awaiting the owner's sign-off after working through
-  [docs/PHASE1-TEST-CHECKLIST.md](docs/PHASE1-TEST-CHECKLIST.md). Don't start Phase 2 before that.
+- Phase 1: all 17 sub-tasks built (PLAN.md §15); the owner still has
+  [docs/PHASE1-TEST-CHECKLIST.md](docs/PHASE1-TEST-CHECKLIST.md) to work through, so Phase 1 bug reports
+  take priority over new Phase 2 work.
+- Phase 2 (POS, receipts, returns, customers, dashboard): in progress, sub-tasks in PLAN.md §16.
 - This build is a **demo** for a prospective client. Keep scope tight; tax features are deferred.
 
 ## Key product decisions (details in PLAN.md §1)
@@ -42,6 +44,9 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
   Lowering a price auto-keeps the old price as the regular price.
 - **Payment is simple:** before finalizing, pick cash or transfer/PromptPay and type the amount received.
   Cash shows change; a transfer amount must equal the total. One payment per sale, no card, split, or deposits.
+- **A customer is optional on a sale** (walk-in by default); the sale snapshots the customer's name and phone.
+- **Staff see no money on the dashboard** — activity only (their sales count, items sold, low stock, pending
+  returns). Revenue, profit, and inventory value are owner-only, like cost.
 - **Returns:** a returned item goes into quarantine (status "Returned", `disposition='pending'`) with no
   stock change; restocking/claiming/writing off is a separate explicit action.
 - **Tags:** automatic tags derived in `shared/tags.ts` (condition, warranty type/period, discount, returned,

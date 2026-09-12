@@ -1,6 +1,7 @@
 # PC Shop Manager — Plan (Phase 0)
 
-> Status: **Approved. Phase 1 in progress.** All open questions are resolved (see §1.2).
+> Status: **Approved. Phase 1 built (awaiting the owner's sign-off), Phase 2 in progress.** All open
+> questions are resolved (see §1.2).
 > Project context: this build is a **demo** for a prospective client. Tax features (VAT, tax invoices)
 > are deferred to a possible paid follow-up.
 
@@ -23,6 +24,7 @@
 13. [Testing](#13-testing)
 14. [Technical risks](#14-technical-risks)
 15. [Phase 1 sub-tasks (one commit each)](#15-phase-1-sub-tasks)
+16. [Phase 2 sub-tasks (one commit each)](#16-phase-2-sub-tasks)
 
 ---
 
@@ -44,6 +46,8 @@
 | Q10      | Seed data                              | Optional checkbox in the first-run wizard, plus a "clear sample data" action (only allowed before any sale exists).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Default                |
 | Q11      | Package manager                        | npm workspaces                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Approved               |
 | Q12      | Extra dependencies                     | The list in §3.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Approved               |
+| Q13      | What staff see on the dashboard        | **Activity only, no money.** Staff get: sales they rang up today, items sold, pending returns, low stock, and their own shortcuts — **no revenue, no cost, no profit**. The owner gets net sales, profit, inventory value, and receipts awaiting cost review. Enforced the same way as everything else: the staff response schema simply has no money fields, so the automated leak test covers it.                                                                                                                                                                                                                                                   | Owner (Phase 2)        |
+| Q14      | Customer on a sale                     | **Optional; walk-in is the default.** Checkout never blocks on a customer. One can be attached when it matters (warranty, delivery, regulars) and the receipt omits it otherwise. The sale snapshots the customer's name and phone, so later edits to the customer record never change an old receipt.                                                                                                                                                                                                                                                                                                                                                | Owner (Phase 2)        |
 | —        | Language                               | Communicate with the owner in **English**. App UI stays in **Thai**. Code, identifiers, and comments in English.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Owner                  |
 
 ### 1.2 Resolved open questions
@@ -86,6 +90,10 @@ be sold until the owner sets the price. After creation, staff can edit only its 
 | P18 | **Discount badge % is rounded down** to a whole number (100 → 79 shows "-21%", 1,990 → 1,590 shows "-20%")                                                                                                                                      | Never overstates the discount to customers                                                                                                                                  |
 | P19 | **Receipts show savings:** lines with a price reduction show the regular price struck through plus the badge, and the receipt shows "ประหยัดไป ฿X"                                                                                              | Customers like seeing it, and it uses data we already snapshot                                                                                                              |
 | P20 | **Price history table** (`product_price_history`) shown on the product page                                                                                                                                                                     | The owner can see when a product was reduced and back; it supports the "original price" requirement                                                                         |
+| P21 | **The refund amount is overridden through its own owner-only endpoint** (`PATCH /returns/:id/refund`), never as a field on the staff-facing "create return" request                                                                             | Same reasoning as P4: staff may record a return, but the request they send carries no money field at all, so the "no money write" test protects it structurally (Phase 2)   |
+| P22 | **A sold serial unit snapshots its own actual cost**, not the product's moving average (non-serial lines keep using the average)                                                                                                                | We already know what that unit cost when it was received, so profit per sale is exact instead of averaged (Phase 2)                                                         |
+| P23 | **`sale_items` ships with its build columns (`kind`, `parent_item_id`, `build_id`) in Phase 2**, even though only `product` and `service` lines exist until Phase 3                                                                             | Altering a financial table later is the migration we least want to run; the columns cost nothing while empty                                                                |
+| P24 | **Baht-in-words (`bahtText`) lives in `shared/money.ts`** as a pure, unit-tested function (no dependency), used on receipts and return slips                                                                                                    | Thai receipts are expected to show the total in words; the rules are small and worth testing rather than trusting a package                                                 |
 
 ---
 
@@ -826,17 +834,18 @@ lists return `{ items, total }` and accept `?page=&pageSize=&q=`.
 
 ### Phase 2
 
-| Method         | Path                               | Notes                                                                                                                                        |
-| -------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET/POST/PATCH | /customers · /customers/:id        | search by name or phone                                                                                                                      |
-| GET            | /customers/:id/history (c)         | purchases, returns, devices, repairs                                                                                                         |
-| POST           | /sales                             | confirm checkout: `{ items, customerId?, payment: { method, receivedSatang } }` → sale + payment + stock out in one transaction              |
-| GET            | /sales (c) · /sales/:id (c)        | `/sales/:id` returns everything needed to render the receipt                                                                                 |
-| POST           | /sales/:id/void 🔒                 |                                                                                                                                              |
-| POST           | /sales/:id/returns                 | record a return `{ lines, reason, refund }` (refund amount override 🔒)                                                                      |
-| GET            | /returns (c) · /returns/:id (c)    | filter `pending=true`                                                                                                                        |
-| POST           | /returns/:id/items/:itemId/resolve | `{ disposition: 'restocked' \| 'sent_to_claim' \| 'written_off', note }`                                                                     |
-| GET            | /dashboard/summary?from=&to= (c)   | net sales, daily chart, best sellers, low stock, pending returns; owner also gets profit, inventory value, and receipts awaiting cost review |
+| Method         | Path                               | Notes                                                                                                                                                                                                                           |
+| -------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET/POST/PATCH | /customers · /customers/:id        | search by name or phone                                                                                                                                                                                                         |
+| GET            | /customers/:id/history (c)         | purchases, returns, devices, repairs                                                                                                                                                                                            |
+| POST           | /sales                             | confirm checkout: `{ items, customerId?, payment: { method, receivedSatang } }` → sale + payment + stock out in one transaction                                                                                                 |
+| GET            | /sales (c) · /sales/:id (c)        | `/sales/:id` returns everything needed to render the receipt                                                                                                                                                                    |
+| POST           | /sales/:id/void 🔒                 |                                                                                                                                                                                                                                 |
+| POST           | /sales/:id/returns                 | record a return `{ lines, reason, refundMethod }` — the amount is computed from the sale's snapshots; the request carries no money field (P21)                                                                                  |
+| PATCH          | /returns/:id/refund 🔒             | `{ refundSatang }` — the owner corrects the refund amount (P21)                                                                                                                                                                 |
+| GET            | /returns (c) · /returns/:id (c)    | filter `pending=true`                                                                                                                                                                                                           |
+| POST           | /returns/:id/items/:itemId/resolve | `{ disposition: 'restocked' \| 'sent_to_claim' \| 'written_off', note }`                                                                                                                                                        |
+| GET            | /dashboard/summary?from=&to= (c)   | **owner:** net sales, daily chart, profit, inventory value, best sellers, low stock, pending returns, receipts awaiting cost review. **staff (Q13):** own sales count, items sold, low stock, pending returns — no money at all |
 
 ### Phase 3
 
@@ -1007,3 +1016,35 @@ price, the struck-through regular price, and the "-X%" badge everywhere, and `Pr
     titles, favicon, owner-only route guards in the UI, "products awaiting price" owner to-do, an
     "about the system" card (version + data folder), daily log files. The checklist the owner works
     through is [PHASE1-TEST-CHECKLIST.md](PHASE1-TEST-CHECKLIST.md).
+
+---
+
+## 16. Phase 2 sub-tasks
+
+POS, receipts, returns, customers, dashboard. One commit per item, same rhythm as Phase 1; the phase ends
+with a test checklist for the owner. Decisions that shape this phase: Q1 (stock only on confirmation),
+Q6 (no manual discounts), Q9 (one simple payment), Q8/P16 (returns go to quarantine), Q13 (staff see no
+money on the dashboard), Q14 (customer optional), and P21–P24.
+
+1. **Phase 2 schema:** customers, sales, sale_items, sale_item_serials, payments, sale_returns,
+   sale_return_items + enums (sale status, payment method, refund method, disposition, sale source,
+   sale item kind) + migration
+2. **Shared core:** cart/total math (line totals, savings, change), `bahtText` (P24), sale/return/customer
+   Zod schemas, new permissions + unit tests
+3. **Customers:** CRUD + search by name/phone, duplicate-phone warning, customer page with purchase history
+4. **Checkout:** `POST /sales` in one transaction (doc number → sale + snapshot lines → payment → stock out
+   → serial statuses), price/awaiting-price/stock/serial validation, integration tests
+5. **POS screen:** always-focused scan box (barcode + serial, Thai layout retry), cart with badges, serial
+   picker, customer picker, payment dialog (cash + change / transfer + PromptPay QR), confirm dialog
+6. **Sales history + sale detail:** list with filters, detail with lines, payment, serials; owner sees cost
+   and profit, staff see neither
+7. **Receipt document:** `DocumentLayout` + Sarabun, receipt PNG (1080px) and A4 PDF download, Thai render
+   test (`ผู้ใหญ่ น้ำแข็ง ที่นี่ ฟรี!`), savings line, total in words
+8. **Void sale** (owner, reason, restores stock + serials, voids the payment, audit) + tests
+9. **Returns:** create return document against a sale (lines/serials/qty/reason/refund method), quarantine,
+   owner refund override (P21), return slip PNG/PDF
+10. **Resolve returned items:** restock (`return_restock`, `was_returned`) / send to claim / write off, with
+    the serial lifecycle and integration tests
+11. **Dashboard:** owner summary (net sales, daily chart with Recharts, profit, inventory value, best
+    sellers, low stock, pending returns, receipts to review) and the staff activity view (Q13)
+12. **Polish + Phase 2 test checklist**
