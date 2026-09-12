@@ -1,7 +1,7 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { CATEGORY_KINDS, PRODUCT_CONDITIONS, WARRANTY_TYPES } from '@pcshop/shared';
 import { users } from './auth';
-import { createdAt, enumCheck, nonNegativeCheck, updatedAt } from './helpers';
+import { createdAt, enumCheck, isSample, nonNegativeCheck, updatedAt } from './helpers';
 import { files } from './system';
 
 export const categories = sqliteTable(
@@ -58,6 +58,7 @@ export const products = sqliteTable(
     onHand: integer('on_hand').notNull().default(0),
     notes: text('notes').notNull().default(''),
     createdBy: integer('created_by').references(() => users.id),
+    isSample: isSample(),
     archivedAt: integer('archived_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -113,6 +114,7 @@ export const tags = sqliteTable('tags', {
   /** A key from the fixed UI palette, e.g. "blue". */
   color: text('color').notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
+  isSample: isSample(),
   archivedAt: integer('archived_at'),
   createdAt: createdAt(),
 });

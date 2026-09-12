@@ -9,6 +9,7 @@ import { writeAudit } from '../../lib/audit';
 import { conflict } from '../../lib/errors';
 import { hashPassword } from '../../lib/password';
 import { generateRecoveryCode, normalizeRecoveryCode } from '../../lib/tokens';
+import { insertSampleData } from '../seed/service';
 
 export function needsSetup(db: AppDatabase): boolean {
   return db.select({ n: count() }).from(users).get()!.n === 0;
@@ -21,7 +22,10 @@ export interface SetupResult {
 
 type ParsedSetupInput = z.output<typeof setupInputSchema>;
 
-/** Creates the owner account, the shop settings row, and the built-in categories. Runs once. */
+/**
+ * Creates the owner account, the shop settings row, the built-in categories and, when asked for, the
+ * sample catalogue (PLAN.md Q10). Runs once.
+ */
 export async function performSetup(
   db: AppDatabase,
   input: ParsedSetupInput | SetupInput,
@@ -53,6 +57,8 @@ export async function performSetup(
       .values({ id: 1, ...parsed.shop, recoveryCodeHash })
       .run();
     insertDefaultCategories(tx);
+    // Same transaction as the rest of the setup: a shop is never left half seeded.
+    if (parsed.sampleData) insertSampleData(tx, owner.id);
     writeAudit(tx, {
       userId: owner.id,
       action: 'setup.complete',

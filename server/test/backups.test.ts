@@ -7,6 +7,7 @@ import Database from 'better-sqlite3';
 import { fromBangkokParts } from '@pcshop/shared';
 import type { DataPaths } from '../src/config';
 import {
+  appSchemaVersion,
   backupBeforeMigrations,
   isBackupDue,
   readBackupState,
@@ -100,7 +101,7 @@ describe('creating backups', () => {
     expect(fs.existsSync(path.join(folder, 'uploads', imagePath))).toBe(true);
     expect(JSON.parse(fs.readFileSync(path.join(folder, 'manifest.json'), 'utf8'))).toMatchObject({
       ok: true,
-      schemaVersion: 1,
+      schemaVersion: appSchemaVersion(MIGRATIONS_FOLDER),
     });
     expect(readBackupState(paths)).toMatchObject({ lastBackupId: backup.id, lastError: null });
 
@@ -271,7 +272,12 @@ describe('backup before migrations', () => {
       const journal = JSON.parse(
         fs.readFileSync(path.join(MIGRATIONS_FOLDER, 'meta', '_journal.json'), 'utf8'),
       );
-      journal.entries.push({ ...journal.entries[0], idx: 1, tag: '0001_future' });
+      const next = journal.entries.length;
+      journal.entries.push({
+        ...journal.entries[0],
+        idx: next,
+        tag: `${String(next).padStart(4, '0')}_future`,
+      });
       fs.mkdirSync(path.join(future, 'meta'));
       fs.writeFileSync(path.join(future, 'meta', '_journal.json'), JSON.stringify(journal));
 
@@ -280,7 +286,10 @@ describe('backup before migrations', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(paths.backupsDir, name!, 'manifest.json'), 'utf8'),
       );
-      expect(manifest).toMatchObject({ reason: 'pre_migration', schemaVersion: 1 });
+      expect(manifest).toMatchObject({
+        reason: 'pre_migration',
+        schemaVersion: appSchemaVersion(MIGRATIONS_FOLDER),
+      });
     } finally {
       fs.rmSync(future, { recursive: true, force: true });
     }

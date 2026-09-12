@@ -36,6 +36,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'backup.create': 'สำรองข้อมูล',
   'backup.settings': 'แก้ไขการตั้งค่าสำรองข้อมูล',
   'backup.restore': 'กู้คืนข้อมูลจากข้อมูลสำรอง',
+  'seed.create': 'ใส่ข้อมูลตัวอย่าง',
+  'seed.clear': 'ลบข้อมูลตัวอย่าง',
 };
 
 export function auditActionLabel(action: string): string {

@@ -22,6 +22,12 @@ export function enumCheck(table: string, column: string, values: readonly string
   return check(`${table}_${column}_check`, sql.raw(`"${column}" IN (${list})`));
 }
 
+/**
+ * Marks a row as sample data created by the seed (PLAN.md Q10), so "clear sample data" can find and
+ * remove exactly those rows and nothing the shop entered itself.
+ */
+export const isSample = () => integer('is_sample', { mode: 'boolean' }).notNull().default(false);
+
 /** CHECK that a numeric column is >= 0 (NULL is allowed for nullable columns). */
 export function nonNegativeCheck(table: string, column: string) {
   return check(`${table}_${column}_non_negative`, sql.raw(`"${column}" >= 0`));

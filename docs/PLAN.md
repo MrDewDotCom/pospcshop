@@ -274,6 +274,10 @@ PCShopManager/
 - Financial documents are never deleted; they use `status='voided'` + `voided_at`, `voided_by`, `void_reason`
 - Main tables have `created_at`, `updated_at`, and `created_by` where authorship matters
 - Snapshots: document lines store the name, SKU, price, regular price, cost, and warranty at the moment the document was created
+- Sample data (Q10): `products`, `tags`, `suppliers` and `goods_receipts` carry `is_sample`, so
+  "clear sample data" deletes exactly the seeded rows (the one exception to "never hard-delete": the
+  rows were never the shop's own data). It is refused once a sample product has been sold, adjusted, or
+  received again — see §7.11.
 
 ### 6.2 Main relationships
 
@@ -369,20 +373,21 @@ erDiagram
 | serial_required (bool)                                 |                                                                                          | owner                                                   |
 | min_stock                                              |                                                                                          | owner                                                   |
 | on_hand                                                | **cache** of sellable stock, changed only by stock.service                               | system                                                  |
+| is_sample (bool)                                       | created by the sample-data seed (Q10); "clear sample data" deletes exactly these rows    | system                                                  |
 | notes, created_by, archived_at, created_at, updated_at |                                                                                          |                                                         |
 
 **product_images**: `product_id`, `file_id`, `sort_order` (PK = product_id + file_id). Staff can edit.
 
 **product_price_history**: `id`, `product_id`, `price_satang`, `regular_price_satang`, `changed_by`, `changed_at` (one row per pricing change; visible to everyone because prices are public)
 
-**tags** (custom, owner-defined): `id`, `name` (e.g. "Open box", "กล่องไม่สวย", "ไม่มีกล่อง", "สินค้าแนะนำ"), `color` (from a fixed palette), `sort_order`, `archived_at`
+**tags** (custom, owner-defined): `id`, `name` (e.g. "Open box", "กล่องไม่สวย", "ไม่มีกล่อง", "สินค้าแนะนำ"), `color` (from a fixed palette), `sort_order`, `is_sample`, `archived_at`
 
 **product_tags**: `product_id`, `tag_id` (PK = both). Owner only.
 
 > Automatic tags (condition, warranty, discount badge, returned units, stock status, awaiting price) are
 > **derived** by `shared/tags.ts` and are not stored. See §7.9.
 
-**suppliers**: `id`, `name`, `contact_name`, `phone`, `line_id`, `address`, `notes`, `archived_at`
+**suppliers**: `id`, `name`, `contact_name`, `phone`, `line_id`, `address`, `notes`, `is_sample`, `archived_at`
 
 **goods_receipts**
 
@@ -394,6 +399,7 @@ erDiagram
 | cost_status                                          | `unverified` \| `verified`. Staff-created receipts start `unverified`; owner-created receipts are `verified` immediately. |
 | cost_verified_by, cost_verified_at                   |                                                                                                                           |
 | total_cost_satang                                    | owner only                                                                                                                |
+| is_sample                                            | created by the sample-data seed (Q10)                                                                                     |
 | created_by, voided_at, voided_by, void_reason        |                                                                                                                           |
 
 **goods_receipt_items**
@@ -686,6 +692,23 @@ sold ──warranty claim (Phase 5)──→ in_claim → sold (same unit back) 
 - Display via `Intl.DateTimeFormat('th-TH-u-ca-buddhist' | 'th-TH-u-ca-gregory', { timeZone: 'Asia/Bangkok' })`
 - SQLite day grouping: `date(sold_at/1000, 'unixepoch', '+7 hours')`
 
+### 7.11 Sample data (Q10)
+
+- The first-run wizard can fill a new shop with a demo catalogue: ~59 products across every category
+  kind (some discounted, some used, serial-tracked, out of stock, low stock, services, one "awaiting
+  price"), 4 suppliers, 4 custom tags, price history, and 4 goods receipts that bring the stock in.
+- The data lives in `server/src/db/seed/sampleData.ts` (data only); `server/src/modules/seed/service.ts`
+  writes it **inside the setup transaction**, and stock goes in through `stockService.move()`, so the
+  ledger invariants hold for sample data as they do for real data.
+- Prices are plausible but will go stale (risk R15). Every sample row is labelled (supplier names carry
+  "(ตัวอย่าง)", notes say ข้อมูลตัวอย่าง) and the settings page warns that the prices are not real.
+- **Clearing** (`POST /api/seed/clear`, owner) deletes the sample rows and their ledger entries. It is
+  refused while the sample data is in use: every stock movement on a sample product must come from a
+  sample goods receipt and every sample serial unit must still be in stock, which covers sales,
+  adjustments, builds, and real receipts of a sample product. Sample tags and suppliers that the shop
+  used for its own data are kept (their `is_sample` flag is cleared) instead of being deleted.
+- `npm run seed [-- --prod]` loads the same data into a shop that was set up without it (dev/demo only).
+
 ---
 
 ## 8. Auth and roles
@@ -793,7 +816,8 @@ lists return `{ items, total }` and accept `?page=&pageSize=&q=`.
 | GET            | /serials?q= (c)                               | serial search                                                                                                                                                                                                                                 |
 | GET/POST       | /backups 🔒                                   | list / back up now                                                                                                                                                                                                                            |
 | POST           | /backups/restore 🔒                           | `{ backupId }` or `{ path }`                                                                                                                                                                                                                  |
-| POST           | /seed/clear 🔒                                | only before any sale exists                                                                                                                                                                                                                   |
+| GET            | /seed/status 🔒                               | counts of sample rows + whether they can still be cleared (§7.11)                                                                                                                                                                             |
+| POST           | /seed/clear 🔒                                | only while the sample data is untouched (§7.11)                                                                                                                                                                                               |
 | GET            | /audit-logs 🔒                                |                                                                                                                                                                                                                                               |
 
 ### Phase 2
@@ -859,6 +883,7 @@ price, the struck-through regular price, and the "-X%" badge everywhere, and `Pr
 | 1     | Settings › Numbering    | /settings/numbering 🔒                     |                                                                                                                                                       | desktop                           |
 | 1     | Settings › Users        | /settings/users 🔒                         |                                                                                                                                                       | desktop                           |
 | 1     | Settings › Backup       | /settings/backup 🔒                        | location, keep count, "back up now", backup list + restore                                                                                            | desktop                           |
+| 1     | Settings › Sample data  | /settings/sample-data 🔒                   | what sample data exists, warning that the prices are samples, "clear sample data" with a confirmation that spells out the stock effect                | desktop                           |
 | 1     | Settings › Phone access | /settings/network                          | LAN URL + large QR + firewall tips                                                                                                                    | both                              |
 | 1     | My account              | /account                                   | change password                                                                                                                                       | both                              |
 | 2     | POS                     | /pos                                       | always-focused search/scan box, cart with badges, serial picker, customer, **payment dialog** (cash/transfer + amount received + change/QR) → confirm | desktop                           |

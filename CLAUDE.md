@@ -140,6 +140,7 @@ Run from the repo root (Node ≥ 22.12; developed on Node 24, Windows).
 | `npm run format`                    | Prettier (+ Tailwind class sorting). `format:check` to verify.                         |
 | `npx shadcn@4.21.0 add <component>` | Run inside `web/` to add a shadcn component.                                           |
 | `npm run reset-password -- <user>`  | Emergency reset: prints a temporary password (`--prod` targets `%APPDATA%` data).      |
+| `npm run seed`                      | Loads the sample catalogue into an already set-up shop (`--prod` for `%APPDATA%`).     |
 
 Database migrations: edit `server/src/db/schema/*`, then run `npx drizzle-kit generate --name <short_name>`
 **inside `server/`** (npm doesn't forward `--name` through the root script). Commit the generated

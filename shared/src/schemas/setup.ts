@@ -15,6 +15,8 @@ export const setupInputSchema = z.object({
     password: passwordSchema(OWNER_PASSWORD_MIN_LENGTH),
   }),
   shop: shopInfoInputSchema,
+  /** Fill the shop with sample products, suppliers and tags to try the system out (PLAN.md Q10). */
+  sampleData: z.boolean().default(false),
 });
 export type SetupInput = z.input<typeof setupInputSchema>;
 

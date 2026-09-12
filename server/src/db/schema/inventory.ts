@@ -17,7 +17,7 @@ import {
 } from '@pcshop/shared';
 import { users } from './auth';
 import { products } from './catalog';
-import { createdAt, enumCheck, nonNegativeCheck, updatedAt } from './helpers';
+import { createdAt, enumCheck, isSample, nonNegativeCheck, updatedAt } from './helpers';
 
 export const suppliers = sqliteTable('suppliers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -27,6 +27,7 @@ export const suppliers = sqliteTable('suppliers', {
   lineId: text('line_id').notNull().default(''),
   address: text('address').notNull().default(''),
   notes: text('notes').notNull().default(''),
+  isSample: isSample(),
   archivedAt: integer('archived_at'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -51,6 +52,7 @@ export const goodsReceipts = sqliteTable(
     createdBy: integer('created_by')
       .notNull()
       .references(() => users.id),
+    isSample: isSample(),
     createdAt: createdAt(),
     voidedAt: integer('voided_at'),
     voidedBy: integer('voided_by').references(() => users.id),

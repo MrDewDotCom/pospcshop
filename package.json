@@ -21,6 +21,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run db:generate -w @pcshop/server",
     "reset-password": "tsx server/scripts/reset-password.ts",
+    "seed": "tsx server/scripts/seed.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -15,6 +15,7 @@ import { ReceivingFormPage } from '@/features/receiving/ReceivingFormPage';
 import { ReceivingListPage } from '@/features/receiving/ReceivingListPage';
 import { BackupPage } from '@/features/settings/BackupPage';
 import { NumberingPage } from '@/features/settings/NumberingPage';
+import { SampleDataPage } from '@/features/settings/SampleDataPage';
 import { PhoneAccessPage } from '@/features/settings/PhoneAccess';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
 import { ShopSettingsPage } from '@/features/settings/ShopSettingsPage';
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
                   { path: 'numbering', element: <NumberingPage /> },
                   { path: 'users', element: <UsersPage /> },
                   { path: 'backup', element: <BackupPage /> },
+                  { path: 'sample-data', element: <SampleDataPage /> },
                   { path: 'network', element: <PhoneAccessPage /> },
                   { path: 'audit', element: <AuditLogPage /> },
                 ],

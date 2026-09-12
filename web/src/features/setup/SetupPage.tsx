@@ -120,12 +120,16 @@ function OwnerStep({
 
 function ShopStep({
   initial,
+  sampleData,
+  onSampleDataChange,
   onBack,
   onSubmit,
   pending,
   error,
 }: {
   initial?: ShopInfoInput;
+  sampleData: boolean;
+  onSampleDataChange: (value: boolean) => void;
   onBack: (v: ShopInfoInput) => void;
   onSubmit: (v: ShopInfoInput) => void;
   pending: boolean;
@@ -178,6 +182,22 @@ function ShopStep({
         <p className="text-sm text-muted-foreground">
           แก้ไขข้อมูลร้านและเพิ่มโลโก้ได้ภายหลังที่หน้าตั้งค่า
         </p>
+        <div className="flex items-start gap-2 rounded-md border p-3">
+          <Checkbox
+            id="sampleData"
+            checked={sampleData}
+            onCheckedChange={(v) => onSampleDataChange(v === true)}
+            className="mt-0.5"
+          />
+          <div className="text-sm">
+            <Label htmlFor="sampleData">ใส่ข้อมูลตัวอย่างให้ทดลองใช้งาน</Label>
+            <p className="mt-1 text-muted-foreground">
+              เพิ่มสินค้าตัวอย่างประมาณ 60 รายการ ผู้จำหน่าย แท็ก และใบรับสินค้า
+              เพื่อให้ลองกดใช้งานได้ทันที ราคาเป็นเพียงตัวอย่าง ลบทั้งชุดได้ภายหลังที่ ตั้งค่า →
+              ข้อมูลตัวอย่าง
+            </p>
+          </div>
+        </div>
         <div className="flex gap-2">
           <Button
             type="button"
@@ -233,6 +253,7 @@ export function SetupPage() {
   const [step, setStep] = useState(0);
   const [owner, setOwner] = useState<OwnerForm>();
   const [shop, setShop] = useState<ShopInfoInput>();
+  const [sampleData, setSampleData] = useState(false);
   const [result, setResult] = useState<{ code: string; shopName: string }>();
   const setup = useSetup();
   const queryClient = useQueryClient();
@@ -243,7 +264,7 @@ export function SetupPage() {
     setShop(shopValues);
     const { confirmPassword: _confirm, ...ownerValues } = owner;
     setup.mutate(
-      { owner: ownerValues, shop: shopValues },
+      { owner: ownerValues, shop: shopValues, sampleData },
       {
         onSuccess: (res) => {
           setResult({ code: res.recoveryCode, shopName: shopValues.shopName });
@@ -287,6 +308,8 @@ export function SetupPage() {
       {step === 1 && (
         <ShopStep
           initial={shop}
+          sampleData={sampleData}
+          onSampleDataChange={setSampleData}
           pending={setup.isPending}
           error={setup.error}
           onBack={(values) => {

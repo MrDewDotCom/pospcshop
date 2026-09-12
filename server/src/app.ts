@@ -13,6 +13,7 @@ import { categoryRoutes } from './modules/categories/routes';
 import { fileRoutes } from './modules/files/routes';
 import { goodsReceiptRoutes } from './modules/goods-receipts/routes';
 import { productRoutes } from './modules/products/routes';
+import { seedRoutes } from './modules/seed/routes';
 import { serialRoutes } from './modules/serials/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { setupRoutes } from './modules/setup/routes';
@@ -121,6 +122,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(stockRoutes);
   await app.register(serialRoutes);
   await app.register(backupRoutes);
+  await app.register(seedRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {

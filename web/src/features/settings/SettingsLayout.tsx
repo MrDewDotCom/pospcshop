@@ -15,6 +15,7 @@ const TABS: SettingsTab[] = [
   { to: '/settings/numbering', label: 'เลขที่เอกสาร', permission: 'settings.manage' },
   { to: '/settings/users', label: 'ผู้ใช้งาน', permission: 'users.manage' },
   { to: '/settings/backup', label: 'สำรองข้อมูล', permission: 'backup.manage' },
+  { to: '/settings/sample-data', label: 'ข้อมูลตัวอย่าง', permission: 'settings.manage' },
   { to: '/settings/network', label: 'เชื่อมต่อมือถือ' },
   { to: '/settings/audit', label: 'ประวัติการใช้งาน', permission: 'audit.view' },
 ];
