@@ -5,6 +5,7 @@ import {
   House,
   Package,
   PackagePlus,
+  ReceiptText,
   ScanSearch,
   Settings,
   ShoppingCart,
@@ -25,6 +26,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'หน้าแรก', icon: House },
   { to: '/pos', label: 'ขายสินค้า', icon: ShoppingCart, permission: 'sale.create' },
+  { to: '/sales', label: 'ประวัติการขาย', icon: ReceiptText },
   { to: '/stock/lookup', label: 'เช็คสต็อก', icon: ScanSearch },
   { to: '/products', label: 'สินค้า', icon: Package },
   { to: '/receiving', label: 'รับสินค้าเข้า', icon: PackagePlus },
