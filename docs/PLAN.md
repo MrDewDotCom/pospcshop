@@ -134,7 +134,9 @@ html-to-image, jsPDF, Vitest, @fontsource (Thai fonts)
   These are part of shadcn/ui.
 - `@vitejs/plugin-react`, `@eslint/js`, and the `@types/*` packages are standard parts of React + Vite, ESLint,
   and TypeScript.
-- The UI font is `@fontsource/ibm-plex-sans-thai`. The document font (Sarabun) will be added in Phase 2.
+- The UI font is `@fontsource/ibm-plex-sans-thai`. The document font is `@fontsource/sarabun` (400/600/700),
+  added in Phase 2 with `html-to-image` 1.11 and `jspdf` 4.2 for receipts. jsPDF's optional `html2canvas`,
+  `canvg`, and `dompurify` get installed too, but only its unused `.html()` method loads them.
 - Drizzle uses the stable releases (`drizzle-orm` 0.45, `drizzle-kit` 0.31), not the 1.0 release candidates.
   `npm audit` flags an old esbuild copy inside drizzle-kit. It's a dev-only tool and the advisory concerns
   esbuild's dev server, so it doesn't affect the shipped app (`npm audit --omit=dev` is clean).

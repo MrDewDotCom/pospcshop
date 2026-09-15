@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router';
+import { ArrowLeft, ReceiptText } from 'lucide-react';
 import {
   addBangkokMonths,
   formatWarranty,
@@ -27,6 +27,7 @@ import { formatMoney, useFormat } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useCurrentUser } from '@/features/auth/queries';
 import { useSale } from './queries';
+import { ReceiptDialog } from './ReceiptDialog';
 import { SaleStatusBadge } from './SaleBadges';
 
 function Info({ label, children }: { label: string; children: ReactNode }) {
@@ -202,12 +203,21 @@ function SaleLines({ sale, showCost }: { sale: Sale; showCost: boolean }) {
   );
 }
 
+type SaleDialog = 'receipt' | null;
+
 export function SaleDetailPage() {
   const id = Number(useParams().id);
   const user = useCurrentUser();
   const showCost = user.can('cost.view');
   const format = useFormat();
   const { data: sale, isPending, error } = useSale(id);
+  // The POS links here with ?receipt=1 so the receipt opens right after a sale.
+  const [params, setParams] = useSearchParams();
+  const [dialog, setDialog] = useState<SaleDialog>(params.get('receipt') ? 'receipt' : null);
+  const closeDialog = () => {
+    setDialog(null);
+    if (params.has('receipt')) setParams({}, { replace: true });
+  };
   useDocumentTitle(sale ? `บิลขาย ${sale.docNo}` : undefined);
 
   if (isPending) return <p className="text-muted-foreground">กำลังโหลด…</p>;
@@ -227,6 +237,12 @@ export function SaleDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold">บิลขาย {sale.docNo}</h1>
           <SaleStatusBadge status={sale.status} />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setDialog('receipt')}>
+            <ReceiptText />
+            ใบเสร็จ
+          </Button>
         </div>
       </div>
 
@@ -320,6 +336,8 @@ export function SaleDetailPage() {
           </div>
         </>
       )}
+
+      {dialog === 'receipt' && <ReceiptDialog sale={sale} onClose={closeDialog} />}
     </div>
   );
 }

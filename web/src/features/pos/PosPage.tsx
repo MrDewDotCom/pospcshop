@@ -438,7 +438,7 @@ export function PosPage() {
       {completed && (
         <SaleCompleteDialog
           sale={completed}
-          onOpenReceipt={() => navigate(`/sales/${completed.id}`)}
+          onOpenReceipt={() => navigate(`/sales/${completed.id}?receipt=1`)}
           onNext={() => {
             setCompleted(null);
             focusScan();

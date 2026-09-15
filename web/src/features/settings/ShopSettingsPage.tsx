@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { ReceiptText } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -23,6 +25,8 @@ import { MoneyField, bahtTextSchema } from '@/components/MoneyField';
 import { PageHeader } from '@/components/PageHeader';
 import { TextAreaField, TextField } from '@/components/TextField';
 import { errorMessage, validationIssues } from '@/lib/api';
+import { sampleSale } from '@/documents/sampleSale';
+import { ReceiptDialog } from '@/features/sales/ReceiptDialog';
 import { LogoUploader } from './LogoUploader';
 import { useShopSettings, useSystemInfo, useUpdateSettings } from './queries';
 
@@ -231,9 +235,21 @@ function SystemInfoCard() {
 
 export function ShopSettingsPage() {
   const { data, isPending, error } = useShopSettings();
+  const [previewing, setPreviewing] = useState(false);
   return (
     <div className="max-w-3xl">
-      <PageHeader title="ข้อมูลร้าน" />
+      <PageHeader
+        title="ข้อมูลร้าน"
+        actions={
+          data && (
+            <Button variant="outline" onClick={() => setPreviewing(true)}>
+              <ReceiptText />
+              ดูตัวอย่างใบเสร็จ
+            </Button>
+          )
+        }
+      />
+      {previewing && <ReceiptDialog sale={sampleSale()} onClose={() => setPreviewing(false)} />}
       {isPending && <p className="text-muted-foreground">กำลังโหลด…</p>}
       {error && <p className="text-destructive">{errorMessage(error)}</p>}
       {data && 'defaultAssemblyFeeSatang' in data && (
