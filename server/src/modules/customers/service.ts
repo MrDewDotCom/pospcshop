@@ -15,7 +15,7 @@ import type { AppDatabase } from '../../db/client';
 import { customers, sales } from '../../db/schema';
 import { writeAudit } from '../../lib/audit';
 import { notFound } from '../../lib/errors';
-import { contains, escapeLike } from '../../lib/sql';
+import { contains, escapeLike, outer } from '../../lib/sql';
 import { toIso, toIsoOrNull } from '../../lib/time';
 import { listReturns } from '../returns/queries';
 import { listSales, type SaleListItemFull } from '../sales/queries';
@@ -27,9 +27,9 @@ const CUSTOMER_NOT_FOUND = () => notFound('ไม่พบลูกค้าน�
 
 // Voided sales don't count as purchases.
 const saleCountSql = sql<number>`(select count(*) from ${sales}
-  where ${sales.customerId} = ${customers.id} and ${sales.status} = 'paid')`;
+  where ${sales.customerId} = ${outer(customers.id)} and ${sales.status} = 'paid')`;
 const lastSaleAtSql = sql<number | null>`(select max(${sales.soldAt}) from ${sales}
-  where ${sales.customerId} = ${customers.id} and ${sales.status} = 'paid')`;
+  where ${sales.customerId} = ${outer(customers.id)} and ${sales.status} = 'paid')`;
 
 function selectCustomers(db: DbOrTx) {
   return db

@@ -77,6 +77,8 @@ function fixtures({ ids, codes }: SeededShop): Record<string, string[]> {
       '/api/sales?status=paid',
     ],
     '/api/sales/:id': [`/api/sales/${ids.sale}`],
+    '/api/returns': ['/api/returns', '/api/returns?pending=true', '/api/returns?q=RT'],
+    '/api/returns/:id': [`/api/returns/${ids.saleReturn}`],
   };
 }
 
@@ -122,6 +124,7 @@ describe('no cost leak to staff', () => {
     expect([...ownerRoutesWithCost].sort()).toEqual(
       [
         '/api/customers/:id/history',
+        '/api/returns/:id',
         '/api/sales',
         '/api/sales/:id',
         '/api/goods-receipts',

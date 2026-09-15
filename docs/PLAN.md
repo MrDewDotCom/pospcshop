@@ -686,6 +686,14 @@ sold ──warranty claim (Phase 5)──→ in_claim → sold (same unit back) 
   - **Write off** → no stock change (it never re-entered sellable stock). Serial becomes `written_off`.
 - **Reporting:** net sales = sales − refunds, and the returned lines' revenue and cost are excluded from profit.
 - A return slip (PNG/PDF) can be sent to the customer like a receipt.
+- **As built (sub-task 9):** `POST /sales/:id/returns` checks each line against what's left to return
+  (`qty − returned_qty`) and, for serial lines, that each unit was sold on that line and hasn't come back
+  already. Serial lines become one return row per unit, so each unit is resolved on its own. The refund
+  defaults to unit price × qty (0 for "ไม่คืนเงิน"); the owner's override is capped at that amount and split
+  back over the lines in proportion (`allocateRefund`). Services and other products that don't count stock
+  **can't be returned** (nothing physical comes back to quarantine); a mistaken service line is fixed by
+  voiding the sale while it has no returns. A sale with returns can't be voided, and a voided sale can't
+  take returns.
 
 ### 7.9 Tags (Q8)
 

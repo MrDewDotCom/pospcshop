@@ -26,6 +26,7 @@ export interface SeededShop {
     voidedReceipt: number;
     customer: number;
     sale: number;
+    saleReturn: number;
   };
   codes: { barcode: string; serial: string; adjustmentDocNo: string };
 }
@@ -177,6 +178,15 @@ export async function seedEverything(app: FastifyInstance): Promise<SeededShop> 
       expectedTotalSatang: saleTotal,
     }),
   );
+  // A return (staff) of one RAM from that sale, so return lines with cost exist.
+  const saleLines = (await owner.get(`/api/sales/${sale.id}`)).json().lines as { id: number }[];
+  const saleReturn = await ok(
+    staff.post(`/api/sales/${sale.id}/returns`, {
+      reason: 'เปลี่ยนใจ',
+      refundMethod: 'cash',
+      lines: [{ saleItemId: saleLines[1]!.id, qty: 1 }],
+    }),
+  );
 
   return {
     owner,
@@ -184,6 +194,7 @@ export async function seedEverything(app: FastifyInstance): Promise<SeededShop> 
     ids: {
       customer: customer.id,
       sale: sale.id,
+      saleReturn: saleReturn.id,
       staffUser,
       tag: tag.id,
       supplier: supplier.id,

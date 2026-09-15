@@ -381,3 +381,29 @@ describe('void sale', () => {
     expect(again.json().error.code).toBe('SALE_VOIDED');
   });
 });
+
+describe('correlated subqueries', () => {
+  // Drizzle leaves columns unqualified in single-table SELECT lists; a subquery that referenced the
+  // outer row that way bound to the inner table and only worked when the ids happened to match.
+  it('counts purchases per customer when customer and sale ids differ', async () => {
+    const shop = await shopWithStock(app);
+    const first = (await shop.owner.post('/api/customers', { name: 'คนแรก' })).json();
+    const second = (await shop.owner.post('/api/customers', { name: 'คนที่สอง' })).json();
+    await shop.staff.post(
+      '/api/sales',
+      cashSale([{ productId: shop.ram, qty: 1 }], 1_690_00, { customerId: second.id }),
+    );
+    const counts = (await shop.owner.get('/api/customers'))
+      .json()
+      .items.map((c: { name: string; saleCount: number; lastSaleAt: string | null }) => [
+        c.name,
+        c.saleCount,
+        c.lastSaleAt !== null,
+      ]);
+    expect(counts).toEqual([
+      ['คนที่สอง', 1, true],
+      ['คนแรก', 0, false],
+    ]);
+    expect(first.id).not.toBe(second.id);
+  });
+});

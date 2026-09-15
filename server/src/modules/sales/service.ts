@@ -34,6 +34,7 @@ import {
 } from '../../db/schema';
 import { writeAudit } from '../../lib/audit';
 import { badRequest, conflict, notFound } from '../../lib/errors';
+import { outer } from '../../lib/sql';
 import { toIso, toIsoOrNull } from '../../lib/time';
 import { allocateDocNumber } from '../../services/numbering.service';
 import * as stockService from '../../services/stock.service';
@@ -105,7 +106,7 @@ export function getSale(db: DbOrTx, id: number): SaleFull {
     .select({
       ret: saleReturns,
       itemCount: sql<number>`(select coalesce(sum(${saleReturnItems.qty}), 0) from ${saleReturnItems}
-        where ${saleReturnItems.returnId} = ${saleReturns.id})`,
+        where ${saleReturnItems.returnId} = ${outer(saleReturns.id)})`,
     })
     .from(saleReturns)
     .where(eq(saleReturns.saleId, id))

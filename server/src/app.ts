@@ -14,6 +14,7 @@ import { customerRoutes } from './modules/customers/routes';
 import { fileRoutes } from './modules/files/routes';
 import { goodsReceiptRoutes } from './modules/goods-receipts/routes';
 import { productRoutes } from './modules/products/routes';
+import { returnRoutes } from './modules/returns/routes';
 import { saleRoutes } from './modules/sales/routes';
 import { seedRoutes } from './modules/seed/routes';
 import { serialRoutes } from './modules/serials/routes';
@@ -128,6 +129,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(seedRoutes);
   await app.register(customerRoutes);
   await app.register(saleRoutes);
+  await app.register(returnRoutes);
 
   const webDistDir = options.webDistDir;
   if (webDistDir && fs.existsSync(path.join(webDistDir, 'index.html'))) {

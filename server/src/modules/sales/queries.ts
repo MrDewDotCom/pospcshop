@@ -20,7 +20,7 @@ import {
   serialItems,
   users,
 } from '../../db/schema';
-import { bangkokDateFilters, contains, escapeLike } from '../../lib/sql';
+import { bangkokDateFilters, contains, outer, escapeLike } from '../../lib/sql';
 import { toIso } from '../../lib/time';
 
 type Db = Pick<AppDatabase, 'select'>;
@@ -28,15 +28,15 @@ type Db = Pick<AppDatabase, 'select'>;
 export type SaleListItemFull = Required<SaleListItem>;
 
 const itemCountSql = sql<number>`(select coalesce(sum(${saleItems.qty}), 0) from ${saleItems}
-  where ${saleItems.saleId} = ${sales.id} and ${saleItems.parentItemId} is null)`;
+  where ${saleItems.saleId} = ${outer(sales.id)} and ${saleItems.parentItemId} is null)`;
 const paymentMethodSql = sql<
   (typeof payments.$inferSelect)['method'] | null
->`(select ${payments.method} from ${payments} where ${payments.saleId} = ${sales.id} order by ${payments.id} limit 1)`;
-const returnCountSql = sql<number>`(select count(*) from ${saleReturns} where ${saleReturns.saleId} = ${sales.id})`;
+>`(select ${payments.method} from ${payments} where ${payments.saleId} = ${outer(sales.id)} order by ${payments.id} limit 1)`;
+const returnCountSql = sql<number>`(select count(*) from ${saleReturns} where ${saleReturns.saleId} = ${outer(sales.id)})`;
 /** Cost of everything that came back on this sale's returns (it leaves profit again, §7.8). */
 export const returnedCostSql = sql<number>`(select coalesce(sum(${saleReturnItems.unitCostSatang} * ${saleReturnItems.qty}), 0)
   from ${saleReturnItems} join ${saleReturns} on ${saleReturns.id} = ${saleReturnItems.returnId}
-  where ${saleReturns.saleId} = ${sales.id})`;
+  where ${saleReturns.saleId} = ${outer(sales.id)})`;
 
 export function selectSaleListItems(db: Db) {
   return db
@@ -109,7 +109,7 @@ export function listSales(
     const soldSerial = sql`exists (select 1 from ${saleItemSerials}
       join ${saleItems} on ${saleItems.id} = ${saleItemSerials.saleItemId}
       join ${serialItems} on ${serialItems.id} = ${saleItemSerials.serialItemId}
-      where ${saleItems.saleId} = ${sales.id} and ${contains(serialItems.serialNo, query.q)})`;
+      where ${saleItems.saleId} = ${outer(sales.id)} and ${contains(serialItems.serialNo, query.q)})`;
     filters.push(
       or(
         contains(sales.docNo, query.q),

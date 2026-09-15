@@ -10,6 +10,7 @@ import {
   Settings,
   ShoppingCart,
   Truck,
+  Undo2,
   Users,
 } from 'lucide-react';
 import type { Permission } from '@pcshop/shared';
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'หน้าแรก', icon: House },
   { to: '/pos', label: 'ขายสินค้า', icon: ShoppingCart, permission: 'sale.create' },
   { to: '/sales', label: 'ประวัติการขาย', icon: ReceiptText },
+  { to: '/returns', label: 'สินค้าคืน', icon: Undo2 },
   { to: '/stock/lookup', label: 'เช็คสต็อก', icon: ScanSearch },
   { to: '/products', label: 'สินค้า', icon: Package },
   { to: '/receiving', label: 'รับสินค้าเข้า', icon: PackagePlus },

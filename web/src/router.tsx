@@ -11,6 +11,8 @@ import { RecoverPage } from '@/features/auth/RecoverPage';
 import { HomePage } from '@/features/home/HomePage';
 import { NotFoundPage } from '@/features/home/NotFoundPage';
 import { PosPage } from '@/features/pos/PosPage';
+import { ReturnDetailPage } from '@/features/returns/ReturnDetailPage';
+import { ReturnsPage } from '@/features/returns/ReturnsPage';
 import { SaleDetailPage } from '@/features/sales/SaleDetailPage';
 import { SalesPage } from '@/features/sales/SalesPage';
 import { ProductDetailPage } from '@/features/products/ProductDetailPage';
@@ -67,6 +69,8 @@ export const router = createBrowserRouter([
               { path: 'suppliers', element: <SuppliersPage /> },
               { path: 'sales', element: <SalesPage /> },
               { path: 'sales/:id', element: <SaleDetailPage /> },
+              { path: 'returns', element: <ReturnsPage /> },
+              { path: 'returns/:id', element: <ReturnDetailPage /> },
               { path: 'customers', element: <CustomersPage /> },
               { path: 'customers/:id', element: <CustomerDetailPage /> },
               { path: 'receiving', element: <ReceivingListPage /> },

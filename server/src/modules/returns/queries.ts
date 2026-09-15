@@ -4,15 +4,15 @@ import { and, count, desc, eq, or, sql, type SQL } from 'drizzle-orm';
 import type { ListReturnsFilters, Paginated, ReturnListItem } from '@pcshop/shared';
 import type { AppDatabase } from '../../db/client';
 import { saleReturnItems, saleReturns, sales, serialItems, users } from '../../db/schema';
-import { bangkokDateFilters, contains } from '../../lib/sql';
+import { bangkokDateFilters, contains, outer } from '../../lib/sql';
 import { toIso } from '../../lib/time';
 
 type Db = Pick<AppDatabase, 'select'>;
 
 const itemCountSql = sql<number>`(select coalesce(sum(${saleReturnItems.qty}), 0) from ${saleReturnItems}
-  where ${saleReturnItems.returnId} = ${saleReturns.id})`;
+  where ${saleReturnItems.returnId} = ${outer(saleReturns.id)})`;
 const pendingCountSql = sql<number>`(select coalesce(sum(${saleReturnItems.qty}), 0) from ${saleReturnItems}
-  where ${saleReturnItems.returnId} = ${saleReturns.id} and ${saleReturnItems.disposition} = 'pending')`;
+  where ${saleReturnItems.returnId} = ${outer(saleReturns.id)} and ${saleReturnItems.disposition} = 'pending')`;
 
 export function selectReturnListItems(db: Db) {
   return db
@@ -61,7 +61,7 @@ export function listReturns(
   if (query.q) {
     const returnedSerial = sql`exists (select 1 from ${saleReturnItems}
       join ${serialItems} on ${serialItems.id} = ${saleReturnItems.serialItemId}
-      where ${saleReturnItems.returnId} = ${saleReturns.id} and ${contains(serialItems.serialNo, query.q)})`;
+      where ${saleReturnItems.returnId} = ${outer(saleReturns.id)} and ${contains(serialItems.serialNo, query.q)})`;
     filters.push(
       or(
         contains(saleReturns.docNo, query.q),

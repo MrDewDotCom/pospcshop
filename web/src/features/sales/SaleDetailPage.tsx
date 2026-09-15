@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, Ban, ReceiptText } from 'lucide-react';
+import { ArrowLeft, Ban, ReceiptText, Undo2 } from 'lucide-react';
 import {
   addBangkokMonths,
   formatWarranty,
@@ -26,6 +26,7 @@ import { errorMessage } from '@/lib/api';
 import { formatMoney, useFormat } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useCurrentUser } from '@/features/auth/queries';
+import { CreateReturnDialog } from '@/features/returns/CreateReturnDialog';
 import { useSale } from './queries';
 import { ReceiptDialog } from './ReceiptDialog';
 import { SaleStatusBadge } from './SaleBadges';
@@ -204,7 +205,7 @@ function SaleLines({ sale, showCost }: { sale: Sale; showCost: boolean }) {
   );
 }
 
-type SaleDialog = 'receipt' | 'void' | null;
+type SaleDialog = 'receipt' | 'void' | 'return' | null;
 
 export function SaleDetailPage() {
   const id = Number(useParams().id);
@@ -253,6 +254,16 @@ export function SaleDetailPage() {
             >
               <Ban />
               ยกเลิกบิล
+            </Button>
+          )}
+          {sale.status === 'paid' && user.can('return.create') && (
+            <Button
+              variant="outline"
+              onClick={() => setDialog('return')}
+              disabled={!sale.lines.some((l) => l.trackStock && l.qty > l.returnedQty)}
+            >
+              <Undo2 />
+              รับคืนสินค้า
             </Button>
           )}
           <Button onClick={() => setDialog('receipt')}>
@@ -355,6 +366,7 @@ export function SaleDetailPage() {
 
       {dialog === 'receipt' && <ReceiptDialog sale={sale} onClose={closeDialog} />}
       {dialog === 'void' && <VoidSaleDialog sale={sale} onClose={closeDialog} />}
+      {dialog === 'return' && <CreateReturnDialog sale={sale} onClose={closeDialog} />}
     </div>
   );
 }
