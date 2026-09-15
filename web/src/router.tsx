@@ -3,6 +3,8 @@ import { CrashPage } from '@/components/CrashPage';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AccountPage } from '@/features/auth/AccountPage';
 import { CategoriesPage } from '@/features/categories/CategoriesPage';
+import { CustomerDetailPage } from '@/features/customers/CustomerDetailPage';
+import { CustomersPage } from '@/features/customers/CustomersPage';
 import { GuestOnly, RequireAuth, RequirePermission, SetupGate } from '@/features/auth/guards';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RecoverPage } from '@/features/auth/RecoverPage';
@@ -56,6 +58,8 @@ export const router = createBrowserRouter([
               { path: 'products/:id', element: <ProductDetailPage /> },
               { path: 'products/:id/edit', element: <ProductEditPage /> },
               { path: 'suppliers', element: <SuppliersPage /> },
+              { path: 'customers', element: <CustomersPage /> },
+              { path: 'customers/:id', element: <CustomerDetailPage /> },
               { path: 'receiving', element: <ReceivingListPage /> },
               { path: 'receiving/new', element: <ReceivingFormPage /> },
               { path: 'receiving/:id', element: <ReceivingDetailPage /> },

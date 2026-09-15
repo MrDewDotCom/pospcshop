@@ -98,6 +98,12 @@ export function bangkokDateKey(ms: number): string {
   return `${p.year}-${pad2(p.month)}-${pad2(p.day)}`;
 }
 
+/** UTC timestamp of 00:00 Bangkok time on a "YYYY-MM-DD" date key (the inverse of bangkokDateKey). */
+export function bangkokDateKeyToMs(key: string): number {
+  const [year, month, day] = key.split('-').map(Number) as [number, number, number];
+  return fromBangkokParts(year, month, day);
+}
+
 export interface TimeRange {
   /** inclusive */
   startMs: number;

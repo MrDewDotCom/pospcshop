@@ -62,6 +62,14 @@ function fixtures({ ids, codes }: SeededShop): Record<string, string[]> {
     '/api/serials': ['/api/serials', '/api/serials?q=S-', '/api/serials?status=written_off'],
     '/api/tags': ['/api/tags', '/api/tags?includeArchived=true'],
     '/api/categories': ['/api/categories', '/api/categories?includeArchived=true'],
+    '/api/customers': [
+      '/api/customers',
+      '/api/customers?q=0899',
+      '/api/customers?includeArchived=true',
+    ],
+    '/api/customers/phone-matches': ['/api/customers/phone-matches?phone=0899990000'],
+    '/api/customers/:id': [`/api/customers/${ids.customer}`],
+    '/api/customers/:id/history': [`/api/customers/${ids.customer}/history`],
   };
 }
 

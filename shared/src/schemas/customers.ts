@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { booleanQuerySchema, paginationQuerySchema } from './common';
-import { returnListItemSchema } from './returns';
-import { saleListItemOwnerSchema, saleListItemStaffSchema } from './sales';
+import { returnListItemSchema, type ReturnListItem } from './returns';
+import { saleListItemOwnerSchema, saleListItemStaffSchema, type SaleListItem } from './sales';
 
 // ---------- responses ----------
 
@@ -42,12 +42,10 @@ export const customerHistoryStaffSchema = z.object({
 export const customerHistoryOwnerSchema = customerHistoryStaffSchema.extend({
   sales: z.array(saleListItemOwnerSchema),
 });
-export type CustomerHistory = z.infer<typeof customerHistoryStaffSchema> & {
-  sales: (z.infer<typeof saleListItemStaffSchema> & {
-    totalCostSatang?: number;
-    profitSatang?: number;
-  })[];
-};
+export interface CustomerHistory {
+  sales: SaleListItem[];
+  returns: ReturnListItem[];
+}
 
 // ---------- inputs ----------
 

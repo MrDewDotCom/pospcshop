@@ -63,6 +63,16 @@ export const api = {
   upload: <T>(url: string, form: FormData) => request<T>('POST', url, form),
 };
 
+/** `?a=1&b=x` from a query object, skipping undefined and empty values. */
+export function queryString(query: object): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  }
+  const text = params.toString();
+  return text ? `?${text}` : '';
+}
+
 /** Field-level issues from a VALIDATION_ERROR response, keyed by dotted path ("owner.username"). */
 export function validationIssues(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError) || error.code !== 'VALIDATION_ERROR') return {};

@@ -1,6 +1,5 @@
 import { and, count, desc, eq, sql, type SQL } from 'drizzle-orm';
 import {
-  fromBangkokParts,
   movingAverageCost,
   normalizeScannedCode,
   stockAdjustmentInputSchema,
@@ -21,7 +20,7 @@ import {
 } from '../../db/schema';
 import { writeAudit } from '../../lib/audit';
 import { badRequest } from '../../lib/errors';
-import { contains } from '../../lib/sql';
+import { bangkokDateFilters, contains } from '../../lib/sql';
 import { toIso } from '../../lib/time';
 import { allocateDocNumber } from '../../services/numbering.service';
 import * as stockService from '../../services/stock.service';
@@ -167,13 +166,6 @@ export interface StockMovementFull {
   unitCostSatang: number | null;
 }
 
-/** "YYYY-MM-DD" (Bangkok) → the UTC ms of that day's 00:00 in Bangkok. */
-function bangkokDayStart(date: string): number {
-  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
-  return fromBangkokParts(y, m, d);
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 const serialNosSql = sql<string | null>`(
   select group_concat(${serialItems.serialNo}, char(10))
   from ${stockMovementSerials} join ${serialItems} on ${serialItems.id} = ${stockMovementSerials.serialItemId}
@@ -188,10 +180,7 @@ export function listStockMovements(
   if (query.productId) filters.push(eq(stockMovements.productId, query.productId));
   if (query.type) filters.push(eq(stockMovements.type, query.type));
   if (query.q) filters.push(contains(stockMovements.refDocNo, query.q));
-  if (query.from) filters.push(sql`${stockMovements.createdAt} >= ${bangkokDayStart(query.from)}`);
-  if (query.to) {
-    filters.push(sql`${stockMovements.createdAt} < ${bangkokDayStart(query.to) + DAY_MS}`);
-  }
+  filters.push(...bangkokDateFilters(stockMovements.createdAt, query.from, query.to));
   const where = and(...filters);
 
   const rows = db

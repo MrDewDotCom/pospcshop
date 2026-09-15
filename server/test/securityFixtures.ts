@@ -24,6 +24,7 @@ export interface SeededShop {
     verifiedReceipt: number;
     unverifiedReceipt: number;
     voidedReceipt: number;
+    customer: number;
   };
   codes: { barcode: string; serial: string; adjustmentDocNo: string };
 }
@@ -156,10 +157,15 @@ export async function seedEverything(app: FastifyInstance): Promise<SeededShop> 
     }),
   );
 
+  const customer = await ok(
+    staff.post('/api/customers', { name: 'คุณลูกค้า ประจำ', phone: '089-999-0000' }),
+  );
+
   return {
     owner,
     staff,
     ids: {
+      customer: customer.id,
       staffUser,
       tag: tag.id,
       supplier: supplier.id,
