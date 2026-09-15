@@ -12,6 +12,7 @@ export function sampleSale(now = Date.now()): Sale {
     parentItemId: null,
     productId: null,
     returnedQty: 0,
+    trackStock: true,
     serialRequired: false,
     serials: [],
   };

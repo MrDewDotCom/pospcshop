@@ -8,11 +8,14 @@ import {
   divRound,
   formatBaht,
   isDiscounted,
+  movingAverageCost,
   PAYMENT_PROBLEM_MESSAGES,
+  voidInputSchema,
   type CheckoutInput,
   type Sale,
   type SaleItemKind,
   type SessionUser,
+  type VoidInput,
   type WarrantyType,
 } from '@pcshop/shared';
 import type { AppDatabase } from '../../db/client';
@@ -29,6 +32,7 @@ import {
   serialItems,
   users,
 } from '../../db/schema';
+import { writeAudit } from '../../lib/audit';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { toIso, toIsoOrNull } from '../../lib/time';
 import { allocateDocNumber } from '../../services/numbering.service';
@@ -60,7 +64,11 @@ export function getSale(db: DbOrTx, id: number): SaleFull {
   const sale = row.sale;
 
   const lines = db
-    .select({ item: saleItems, serialRequired: products.serialRequired })
+    .select({
+      item: saleItems,
+      serialRequired: products.serialRequired,
+      trackStock: products.trackStock,
+    })
     .from(saleItems)
     .leftJoin(products, eq(products.id, saleItems.productId))
     .where(eq(saleItems.saleId, id))
@@ -137,7 +145,7 @@ export function getSale(db: DbOrTx, id: number): SaleFull {
       refundSatang: ret.refundSatang,
       itemCount,
     })),
-    lines: lines.map(({ item, serialRequired }) => {
+    lines: lines.map(({ item, serialRequired, trackStock }) => {
       const expiry = warrantyExpiry(
         sale.soldAt,
         item.warrantyType as WarrantyType,
@@ -157,6 +165,7 @@ export function getSale(db: DbOrTx, id: number): SaleFull {
         warrantyType: item.warrantyType as WarrantyType,
         warrantyMonths: item.warrantyMonths,
         returnedQty: item.returnedQty,
+        trackStock: trackStock ?? false,
         serialRequired: serialRequired ?? false,
         unitCostSatang: item.unitCostSatang,
         serials: serials
@@ -170,6 +179,84 @@ export function getSale(db: DbOrTx, id: number): SaleFull {
       };
     }),
   };
+}
+
+// ---------- void (owner, PLAN.md §7.6) ----------
+
+/**
+ * Voids a sale in one transaction: the sale is marked voided (never deleted), every stock-tracked line
+ * comes back in (`void` movements with the reason; serial units back to in stock, and the average cost
+ * takes them back at the cost they left with), the payment is voided, and the audit log records it.
+ * A sale that already has returns can't be voided: handle the rest with a return instead.
+ */
+export function voidSale(db: Db, actor: SessionUser, id: number, input: VoidInput): SaleFull {
+  const reason = voidInputSchema.parse(input).reason;
+  db.transaction((tx) => {
+    const sale = tx.select().from(sales).where(eq(sales.id, id)).get();
+    if (!sale) throw SALE_NOT_FOUND();
+    if (sale.status === 'voided') throw conflict('SALE_VOIDED', 'บิลนี้ถูกยกเลิกไปแล้ว');
+    const hasReturns = tx
+      .select({ id: saleReturns.id })
+      .from(saleReturns)
+      .where(eq(saleReturns.saleId, id))
+      .get();
+    if (hasReturns) {
+      throw conflict(
+        'SALE_HAS_RETURNS',
+        'บิลนี้มีการคืนสินค้าแล้ว ยกเลิกทั้งบิลไม่ได้ ให้ทำรับคืนสินค้าส่วนที่เหลือแทน',
+      );
+    }
+
+    const now = Date.now();
+    const lines = tx.select().from(saleItems).where(eq(saleItems.saleId, id)).all();
+    for (const line of lines) {
+      if (line.productId === null) continue;
+      const product = tx.select().from(products).where(eq(products.id, line.productId)).get()!;
+      if (!product.trackStock) continue;
+      const unitIds = tx
+        .select({ id: saleItemSerials.serialItemId })
+        .from(saleItemSerials)
+        .where(eq(saleItemSerials.saleItemId, line.id))
+        .all()
+        .map((row) => row.id);
+      tx.update(products)
+        .set({
+          costSatang: movingAverageCost(
+            product.onHand,
+            product.costSatang,
+            line.qty,
+            line.unitCostSatang,
+          ),
+        })
+        .where(eq(products.id, product.id))
+        .run();
+      stockService.move(tx, {
+        productId: product.id,
+        qtyChange: line.qty,
+        type: 'void',
+        ref: { type: 'sale', id, docNo: sale.docNo },
+        unitCostSatang: line.unitCostSatang,
+        reason,
+        userId: actor.id,
+        serials: unitIds.length ? { ids: unitIds, status: 'in_stock' } : undefined,
+        now,
+      });
+    }
+
+    tx.update(sales)
+      .set({ status: 'voided', voidedAt: now, voidedBy: actor.id, voidReason: reason })
+      .where(eq(sales.id, id))
+      .run();
+    tx.update(payments).set({ voidedAt: now }).where(eq(payments.saleId, id)).run();
+    writeAudit(tx, {
+      userId: actor.id,
+      action: 'sale.void',
+      entityType: 'sale',
+      entityId: id,
+      detail: { docNo: sale.docNo, reason, totalSatang: sale.totalSatang },
+    });
+  });
+  return getSale(db, id);
 }
 
 // ---------- checkout (PLAN.md §7.4) ----------

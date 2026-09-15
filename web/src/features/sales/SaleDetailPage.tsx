@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, ReceiptText } from 'lucide-react';
+import { ArrowLeft, Ban, ReceiptText } from 'lucide-react';
 import {
   addBangkokMonths,
   formatWarranty,
@@ -29,6 +29,7 @@ import { useCurrentUser } from '@/features/auth/queries';
 import { useSale } from './queries';
 import { ReceiptDialog } from './ReceiptDialog';
 import { SaleStatusBadge } from './SaleBadges';
+import { VoidSaleDialog } from './VoidSaleDialog';
 
 function Info({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -203,7 +204,7 @@ function SaleLines({ sale, showCost }: { sale: Sale; showCost: boolean }) {
   );
 }
 
-type SaleDialog = 'receipt' | null;
+type SaleDialog = 'receipt' | 'void' | null;
 
 export function SaleDetailPage() {
   const id = Number(useParams().id);
@@ -239,6 +240,21 @@ export function SaleDetailPage() {
           <SaleStatusBadge status={sale.status} />
         </div>
         <div className="flex flex-wrap gap-2">
+          {sale.status === 'paid' && user.can('sale.void') && (
+            <Button
+              variant="outline"
+              onClick={() => setDialog('void')}
+              disabled={sale.returnCount > 0}
+              title={
+                sale.returnCount > 0
+                  ? 'บิลนี้มีการคืนสินค้าแล้ว ยกเลิกทั้งบิลไม่ได้ ให้ทำรับคืนส่วนที่เหลือแทน'
+                  : undefined
+              }
+            >
+              <Ban />
+              ยกเลิกบิล
+            </Button>
+          )}
           <Button onClick={() => setDialog('receipt')}>
             <ReceiptText />
             ใบเสร็จ
@@ -338,6 +354,7 @@ export function SaleDetailPage() {
       )}
 
       {dialog === 'receipt' && <ReceiptDialog sale={sale} onClose={closeDialog} />}
+      {dialog === 'void' && <VoidSaleDialog sale={sale} onClose={closeDialog} />}
     </div>
   );
 }

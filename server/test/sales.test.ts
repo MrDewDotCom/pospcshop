@@ -295,3 +295,89 @@ describe('checkout', () => {
     expect((await shop.staff.get('/api/sales/9999')).statusCode).toBe(404);
   });
 });
+
+describe('void sale', () => {
+  it('owner voids: stock and serial units come back, payment voided, audited', async () => {
+    const shop = await shopWithStock(app);
+    const customer = (await shop.owner.post('/api/customers', { name: 'คุณซี' })).json();
+    const sale = (
+      await shop.staff.post(
+        '/api/sales',
+        cashSale(
+          [
+            { productId: shop.ram, qty: 3 },
+            { productId: shop.cpu, qty: 1, serialItemIds: [shop.cpu1] },
+            { productId: shop.service, qty: 1 },
+          ],
+          3 * 1_690_00 + 6_990_00 + 300_00,
+          { customerId: customer.id },
+        ),
+      )
+    ).json();
+    expect(productRow(app, shop.ram).onHand).toBe(7);
+    // Receive more RAM at a different cost in between: the voided units come back at their own cost.
+    await shop.owner.post('/api/goods-receipts', {
+      lines: [{ productId: shop.ram, qty: 7, unitCostSatang: 1_600_00 }],
+    });
+    // 7 × 1,400 + 7 × 1,600 over 14 = 1,500
+    expect(productRow(app, shop.ram).costSatang).toBe(1_500_00);
+
+    expect((await shop.staff.post(`/api/sales/${sale.id}/void`, { reason: 'x' })).statusCode).toBe(
+      403,
+    );
+    expect((await shop.owner.post(`/api/sales/${sale.id}/void`, { reason: ' ' })).statusCode).toBe(
+      400,
+    );
+
+    const res = await shop.owner.post(`/api/sales/${sale.id}/void`, { reason: 'ลูกค้าเปลี่ยนใจ' });
+    expect(res.statusCode).toBe(200);
+    const voided = res.json();
+    expect(voided).toMatchObject({
+      status: 'voided',
+      voidReason: 'ลูกค้าเปลี่ยนใจ',
+      voidedByName: 'สมชาย ใจดี',
+      profitSatang: 0,
+      payment: { voidedAt: expect.any(String) },
+    });
+
+    // 14 + 3 back; (14 × 1,500 + 3 × 1,400) / 17 = 1,482.35… → 1,482.35 (half-up)
+    expect(productRow(app, shop.ram)).toMatchObject({ onHand: 17, costSatang: 1_482_35 });
+    expect(productRow(app, shop.cpu).onHand).toBe(2);
+    const unit = app.database.db
+      .select()
+      .from(serialItems)
+      .where(eq(serialItems.id, shop.cpu1))
+      .get()!;
+    expect(unit.status).toBe('in_stock');
+    const voidMoves = app.database.db
+      .select()
+      .from(stockMovements)
+      .where(eq(stockMovements.type, 'void'))
+      .all();
+    expect(voidMoves.map((m) => [m.productId, m.qtyChange, m.reason, m.refDocNo])).toEqual([
+      [shop.ram, 3, 'ลูกค้าเปลี่ยนใจ', sale.docNo],
+      [shop.cpu, 1, 'ลูกค้าเปลี่ยนใจ', sale.docNo],
+    ]);
+    expect(findStockMismatches(app.database.db)).toEqual([]);
+
+    const audit = (await shop.owner.get('/api/audit-logs')).json().items;
+    expect(audit[0]).toMatchObject({ action: 'sale.void' });
+
+    // The unit can be sold again; the voided sale no longer counts as a purchase.
+    expect(
+      (
+        await shop.staff.post(
+          '/api/sales',
+          cashSale([{ productId: shop.cpu, qty: 1, serialItemIds: [shop.cpu1] }], 6_990_00),
+        )
+      ).statusCode,
+    ).toBe(201);
+    expect((await shop.owner.get(`/api/customers/${customer.id}`)).json().saleCount).toBe(0);
+    const voidedList = (await shop.owner.get('/api/sales?status=voided')).json();
+    expect(voidedList.items.map((s: { docNo: string }) => s.docNo)).toEqual([sale.docNo]);
+
+    const again = await shop.owner.post(`/api/sales/${sale.id}/void`, { reason: 'ซ้ำ' });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.code).toBe('SALE_VOIDED');
+  });
+});

@@ -71,6 +71,8 @@ const saleLineBase = z.object({
   warrantyType: z.enum(WARRANTY_TYPES),
   warrantyMonths: z.number().int(),
   returnedQty: z.number().int(),
+  /** The product counts stock (services don't): voids and returns only move stock for these. */
+  trackStock: z.boolean(),
   serialRequired: z.boolean(),
   serials: z.array(saleSerialSchema),
 });
