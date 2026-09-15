@@ -1,7 +1,14 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { ArrowLeft, FileText, Pencil } from 'lucide-react';
-import { REFUND_METHOD_LABELS, type SaleReturn } from '@pcshop/shared';
+import {
+  REFUND_METHOD_LABELS,
+  RESOLVED_RETURN_DISPOSITIONS,
+  RETURN_RESOLVE_ACTION_LABELS,
+  type ResolvedReturnDisposition,
+  type ReturnLine,
+  type SaleReturn,
+} from '@pcshop/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +30,7 @@ import { DispositionBadge } from '@/features/sales/SaleBadges';
 import { useShopSettings } from '@/features/settings/queries';
 import { useReturn } from './queries';
 import { RefundDialog } from './RefundDialog';
+import { ResolveDialog } from './ResolveDialog';
 
 function Info({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -54,6 +62,10 @@ export function ReturnDetailPage() {
   const format = useFormat();
   const { data: ret, isPending, error } = useReturn(id);
   const [dialog, setDialog] = useState<'slip' | 'refund' | null>(null);
+  const [resolving, setResolving] = useState<{
+    line: ReturnLine;
+    disposition: ResolvedReturnDisposition;
+  } | null>(null);
   useDocumentTitle(ret ? `ใบคืนสินค้า ${ret.docNo}` : undefined);
 
   if (isPending) return <p className="text-muted-foreground">กำลังโหลด…</p>;
@@ -181,6 +193,20 @@ export function ReturnDetailPage() {
                       {line.resolutionNote && <div>{line.resolutionNote}</div>}
                     </div>
                   )}
+                  {line.disposition === 'pending' && user.can('return.resolve') && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {RESOLVED_RETURN_DISPOSITIONS.map((disposition) => (
+                        <Button
+                          key={disposition}
+                          size="xs"
+                          variant={disposition === 'restocked' ? 'default' : 'outline'}
+                          onClick={() => setResolving({ line, disposition })}
+                        >
+                          {RETURN_RESOLVE_ACTION_LABELS[disposition]}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -190,6 +216,14 @@ export function ReturnDetailPage() {
 
       {dialog === 'slip' && <ReturnSlipDialog ret={ret} onClose={() => setDialog(null)} />}
       {dialog === 'refund' && <RefundDialog ret={ret} onClose={() => setDialog(null)} />}
+      {resolving && (
+        <ResolveDialog
+          ret={ret}
+          line={resolving.line}
+          disposition={resolving.disposition}
+          onClose={() => setResolving(null)}
+        />
+      )}
     </div>
   );
 }

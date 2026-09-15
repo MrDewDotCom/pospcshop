@@ -4,6 +4,8 @@ import {
   createReturnInputSchema,
   idParamSchema,
   listReturnsQuerySchema,
+  resolveReturnItemInputSchema,
+  returnItemParamSchema,
   returnListItemSchema,
   saleReturnOwnerSchema,
   saleReturnStaffSchema,
@@ -13,7 +15,7 @@ import { respondByRole } from '../../lib/respondByRole';
 import type { ZodTypeProvider } from '../../lib/zod';
 import { requirePermission } from '../../plugins/auth';
 import { listReturns } from './queries';
-import { createReturn, getReturn, updateReturnRefund } from './service';
+import { createReturn, getReturn, resolveReturnItem, updateReturnRefund } from './service';
 
 // Staff see refunds (they hand them over), never the cost of the returned units.
 const detailSchemas = { owner: saleReturnOwnerSchema, staff: saleReturnStaffSchema };
@@ -52,6 +54,27 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
             createReturn(db(), request.user!, request.params.id, request.body),
           ),
         ),
+  );
+
+  // The explicit decision that takes a returned unit out of quarantine (Q1: the only stock change).
+  r.post(
+    '/api/returns/:id/items/:itemId/resolve',
+    {
+      preHandler: requirePermission('return.resolve'),
+      schema: { params: returnItemParamSchema, body: resolveReturnItemInputSchema },
+    },
+    async (request) =>
+      respondByRole(
+        request,
+        detailSchemas,
+        resolveReturnItem(
+          db(),
+          request.user!,
+          request.params.id,
+          request.params.itemId,
+          request.body,
+        ),
+      ),
   );
 
   // P21: only the owner changes the refund amount, on its own endpoint.

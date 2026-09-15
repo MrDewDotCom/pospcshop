@@ -4,8 +4,12 @@ import {
   allocateRefund,
   createReturnInputSchema,
   formatBaht,
+  movingAverageCost,
+  resolveReturnItemInputSchema,
   updateReturnRefundInputSchema,
   type CreateReturnInput,
+  type ResolvedReturnDisposition,
+  type ResolveReturnItemInput,
   type SaleReturn,
   type SessionUser,
   type UpdateReturnRefundInput,
@@ -25,6 +29,7 @@ import { writeAudit } from '../../lib/audit';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { toIso, toIsoOrNull } from '../../lib/time';
 import { allocateDocNumber } from '../../services/numbering.service';
+import * as stockService from '../../services/stock.service';
 import { selectReturnListItems, toReturnListItem } from './queries';
 
 type Db = AppDatabase;
@@ -258,6 +263,105 @@ export function createReturn(
     return ret.id;
   });
   return getReturn(db, id);
+}
+
+// ---------- resolve a returned unit (PLAN.md §7.8) ----------
+
+const RESOLVE_LABELS: Record<ResolvedReturnDisposition, string> = {
+  restocked: 'คืนเข้าสต็อก',
+  sent_to_claim: 'ส่งเคลม',
+  written_off: 'ตัดจำหน่าย',
+};
+
+/**
+ * The explicit decision that takes a returned line out of quarantine (staff or owner):
+ * - restocked → back into sellable stock (`return_restock` movement, the average takes the units back
+ *   at their sale cost); a serial unit returns to in stock marked "was returned".
+ * - sent_to_claim → the serial unit is "in claim" (the claim itself arrives in Phase 5); no stock change.
+ * - written_off → nothing re-enters stock; a serial unit is written off.
+ */
+export function resolveReturnItem(
+  db: Db,
+  actor: SessionUser,
+  returnId: number,
+  itemId: number,
+  rawInput: ResolveReturnItemInput,
+): SaleReturnFull {
+  const { disposition, note } = resolveReturnItemInputSchema.parse(rawInput);
+  db.transaction((tx) => {
+    const ret = tx.select().from(saleReturns).where(eq(saleReturns.id, returnId)).get();
+    if (!ret) throw RETURN_NOT_FOUND();
+    const item = tx
+      .select()
+      .from(saleReturnItems)
+      .where(and(eq(saleReturnItems.id, itemId), eq(saleReturnItems.returnId, returnId)))
+      .get();
+    if (!item) throw notFound('ไม่พบรายการนี้ในใบคืนสินค้า');
+    if (item.disposition !== 'pending') {
+      throw conflict('ALREADY_RESOLVED', 'รายการนี้จัดการไปแล้ว');
+    }
+
+    const now = Date.now();
+    if (disposition === 'restocked') {
+      const product = tx.select().from(products).where(eq(products.id, item.productId)).get()!;
+      tx.update(products)
+        .set({
+          costSatang: movingAverageCost(
+            product.onHand,
+            product.costSatang,
+            item.qty,
+            item.unitCostSatang,
+          ),
+        })
+        .where(eq(products.id, product.id))
+        .run();
+      stockService.move(tx, {
+        productId: product.id,
+        qtyChange: item.qty,
+        type: 'return_restock',
+        ref: { type: 'sale_return', id: returnId, docNo: ret.docNo },
+        unitCostSatang: item.unitCostSatang,
+        reason: note || null,
+        userId: actor.id,
+        serials: item.serialItemId ? { ids: [item.serialItemId], status: 'in_stock' } : undefined,
+        now,
+      });
+      if (item.serialItemId) {
+        tx.update(serialItems)
+          .set({ wasReturned: true })
+          .where(eq(serialItems.id, item.serialItemId))
+          .run();
+      }
+    } else if (item.serialItemId) {
+      // Not a stock change: the unit never re-entered sellable stock.
+      tx.update(serialItems)
+        .set({ status: disposition === 'sent_to_claim' ? 'in_claim' : 'written_off' })
+        .where(eq(serialItems.id, item.serialItemId))
+        .run();
+    }
+
+    tx.update(saleReturnItems)
+      .set({ disposition, resolvedAt: now, resolvedBy: actor.id, resolutionNote: note })
+      .where(eq(saleReturnItems.id, itemId))
+      .run();
+    writeAudit(tx, {
+      userId: actor.id,
+      action: 'return.resolve',
+      entityType: 'sale_return',
+      entityId: returnId,
+      detail: {
+        docNo: ret.docNo,
+        itemId,
+        productId: item.productId,
+        qty: item.qty,
+        serialItemId: item.serialItemId,
+        disposition,
+        decision: RESOLVE_LABELS[disposition],
+        note,
+      },
+    });
+  });
+  return getReturn(db, returnId);
 }
 
 // ---------- owner refund override (P21) ----------

@@ -43,6 +43,7 @@ import {
   productPriceHistory,
   productTags,
   products,
+  saleReturnItems,
   serialItems,
   tags,
   users,
@@ -126,6 +127,7 @@ function toListItem(
   category: CategoryRow,
   thumbUrl: string | null,
   tagChips: ProductTagChip[],
+  pendingReturnQty: number,
 ): ProductListItemFull {
   return {
     id: row.id,
@@ -150,9 +152,25 @@ function toListItem(
     thumbUrl,
     archivedAt: toIsoOrNull(row.archivedAt),
     tags: tagChips,
-    // Pending customer returns join the source data in Phase 2.
-    autoTags: deriveAutoTags(row),
+    autoTags: deriveAutoTags({ ...row, pendingReturnQty }),
   };
+}
+
+/** Units customers returned that still wait in quarantine, per product ("สินค้าคืน N ชิ้น" tag). */
+function pendingReturnsByProduct(db: DbOrTx, productIds: number[]): Map<number, number> {
+  if (productIds.length === 0) return new Map();
+  const rows = db
+    .select({ productId: saleReturnItems.productId, qty: sql<number>`sum(${saleReturnItems.qty})` })
+    .from(saleReturnItems)
+    .where(
+      and(
+        inArray(saleReturnItems.productId, productIds),
+        eq(saleReturnItems.disposition, 'pending'),
+      ),
+    )
+    .groupBy(saleReturnItems.productId)
+    .all();
+  return new Map(rows.map((r) => [r.productId, r.qty]));
 }
 
 /** Active custom tags per product, in tag display order. Products without tags map to []. */
@@ -202,8 +220,9 @@ export function getProduct(db: DbOrTx, id: number): ProductDetailFull {
   const { product, category } = found;
   const images = imagesOf(db, id);
   const chips = tagChipsByProduct(db, [id]).get(id)!;
+  const pendingReturns = pendingReturnsByProduct(db, [id]).get(id) ?? 0;
   return {
-    ...toListItem(product, category, images[0]?.thumbUrl ?? null, chips),
+    ...toListItem(product, category, images[0]?.thumbUrl ?? null, chips, pendingReturns),
     description: product.description,
     supplierWarrantyMonths: product.supplierWarrantyMonths,
     notes: product.notes,
@@ -280,10 +299,9 @@ export function listProducts(db: Db, query: ListProductsFilters): Paginated<Prod
     .offset((query.page - 1) * query.pageSize)
     .all();
   const total = db.select({ n: count() }).from(products).where(where).get()!.n;
-  const chips = tagChipsByProduct(
-    db,
-    rows.map((r) => r.product.id),
-  );
+  const ids = rows.map((r) => r.product.id);
+  const chips = tagChipsByProduct(db, ids);
+  const pendingReturns = pendingReturnsByProduct(db, ids);
 
   return {
     total,
@@ -293,6 +311,7 @@ export function listProducts(db: Db, query: ListProductsFilters): Paginated<Prod
         category,
         thumbPath ? `/uploads/${thumbPath}` : null,
         chips.get(product.id)!,
+        pendingReturns.get(product.id) ?? 0,
       ),
     ),
   };
@@ -325,6 +344,7 @@ export function lookupProduct(db: Db, rawCode: string): LookupResult | null {
       row.category,
       row.thumbPath ? `/uploads/${row.thumbPath}` : null,
       tagChipsByProduct(db, [row.product.id]).get(row.product.id)!,
+      pendingReturnsByProduct(db, [row.product.id]).get(row.product.id) ?? 0,
     );
 
   for (const code of candidates) {

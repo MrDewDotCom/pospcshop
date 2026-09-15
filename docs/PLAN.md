@@ -694,6 +694,11 @@ sold ──warranty claim (Phase 5)──→ in_claim → sold (same unit back) 
   **can't be returned** (nothing physical comes back to quarantine); a mistaken service line is fixed by
   voiding the sale while it has no returns. A sale with returns can't be voided, and a voided sale can't
   take returns.
+- **As built (sub-task 10):** `POST /returns/:id/items/:itemId/resolve` (staff or owner) resolves one
+  pending line once. Restocking is a `return_restock` movement through `stockService.move()`, and the moving
+  average takes the units back at the cost snapshotted on the sale line (voiding a sale does the same).
+  Claims and write-offs only change the serial status (`in_claim` / `written_off`). Pending units show as the
+  product's "สินค้าคืน N ชิ้น" tag.
 
 ### 7.9 Tags (Q8)
 

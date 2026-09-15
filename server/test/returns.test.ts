@@ -285,3 +285,138 @@ describe('returns', () => {
     expect((await shop.staff.get('/api/returns/9999')).statusCode).toBe(404);
   });
 });
+
+describe('resolving returned units', () => {
+  async function returned() {
+    const shop = await shopWithSale();
+    const ret = (
+      await shop.staff.post(`/api/sales/${shop.sale.id}/returns`, {
+        reason: 'เสีย',
+        refundMethod: 'cash',
+        lines: [
+          { saleItemId: shop.ramLine, qty: 2 },
+          { saleItemId: shop.cpuLine, qty: 2, serialItemIds: [shop.cpu1, shop.cpu2] },
+        ],
+      })
+    ).json();
+    const [ramItem, cpu1Item, cpu2Item] = ret.lines as { id: number; serialItemId: number }[];
+    const resolve = (itemId: number, disposition: string, note = '') =>
+      shop.staff.post(`/api/returns/${ret.id}/items/${itemId}/resolve`, { disposition, note });
+    return {
+      ...shop,
+      ret,
+      ramItem: ramItem!.id,
+      cpu1Item: cpu1Item!.id,
+      cpu2Item: cpu2Item!.id,
+      resolve,
+    };
+  }
+
+  const autoTagLabels = async (
+    client: { get: (url: string) => Promise<{ json: () => unknown }> },
+    id: number,
+  ) =>
+    (
+      (await client.get(`/api/products/${id}`)).json() as {
+        autoTags: { key: string; label: string }[];
+      }
+    ).autoTags
+      .filter((t) => t.key === 'returned')
+      .map((t) => t.label);
+
+  it('restock puts units back into sellable stock through the ledger', async () => {
+    const shop = await returned();
+    expect(await autoTagLabels(shop.staff, shop.ram)).toEqual(['สินค้าคืน 2 ชิ้น']);
+    expect(productRow(app, shop.ram)).toMatchObject({ onHand: 7, costSatang: 1_400_00 });
+
+    const res = await shop.resolve(shop.ramItem, 'restocked', 'ตรวจแล้วใช้งานได้');
+    expect(res.statusCode).toBe(200);
+    const line = res.json().lines[0];
+    expect(line).toMatchObject({
+      disposition: 'restocked',
+      resolutionNote: 'ตรวจแล้วใช้งานได้',
+      resolvedByName: 'พนักงาน ทดสอบ',
+    });
+    expect(res.json().pendingCount).toBe(2);
+    expect(productRow(app, shop.ram)).toMatchObject({ onHand: 9, costSatang: 1_400_00 });
+    const restock = app.database.db
+      .select()
+      .from(stockMovements)
+      .where(eq(stockMovements.type, 'return_restock'))
+      .all();
+    expect(restock.map((m) => [m.productId, m.qtyChange, m.refDocNo])).toEqual([
+      [shop.ram, 2, shop.ret.docNo],
+    ]);
+    expect(await autoTagLabels(shop.staff, shop.ram)).toEqual([]);
+
+    // A serial unit comes back in stock marked "was returned", and can be sold again.
+    await shop.resolve(shop.cpu1Item, 'restocked');
+    const unit = app.database.db
+      .select()
+      .from(serialItems)
+      .where(eq(serialItems.id, shop.cpu1))
+      .get()!;
+    expect(unit).toMatchObject({ status: 'in_stock', wasReturned: true });
+    expect(productRow(app, shop.cpu).onHand).toBe(1);
+    const serials = (
+      await shop.staff.get(`/api/products/${shop.cpu}/serials?status=in_stock`)
+    ).json();
+    expect(serials.items).toMatchObject([{ serialNo: 'CPU-1', wasReturned: true }]);
+    expect(
+      (
+        await shop.staff.post(
+          '/api/sales',
+          cashSale([{ productId: shop.cpu, qty: 1, serialItemIds: [shop.cpu1] }], 6_990_00),
+        )
+      ).statusCode,
+    ).toBe(201);
+    expect(findStockMismatches(app.database.db)).toEqual([]);
+  });
+
+  it('send to claim and write off change no stock', async () => {
+    const shop = await returned();
+    expect((await shop.resolve(shop.cpu1Item, 'sent_to_claim', 'ส่ง Synnex')).statusCode).toBe(200);
+    expect((await shop.resolve(shop.cpu2Item, 'written_off', 'เสียหายหนัก')).statusCode).toBe(200);
+    expect((await shop.resolve(shop.ramItem, 'written_off')).statusCode).toBe(200);
+
+    expect(unitStatus(shop.cpu1)).toBe('in_claim');
+    expect(unitStatus(shop.cpu2)).toBe('written_off');
+    expect(productRow(app, shop.cpu).onHand).toBe(0);
+    expect(productRow(app, shop.ram).onHand).toBe(7);
+    expect(
+      app.database.db
+        .select()
+        .from(stockMovements)
+        .where(eq(stockMovements.type, 'return_restock'))
+        .all(),
+    ).toEqual([]);
+    const detail = (await shop.staff.get(`/api/returns/${shop.ret.id}`)).json();
+    expect(detail.pendingCount).toBe(0);
+    expect(detail.lines.map((l: { disposition: string }) => l.disposition)).toEqual([
+      'written_off',
+      'sent_to_claim',
+      'written_off',
+    ]);
+    expect((await shop.staff.get('/api/returns?pending=true')).json().total).toBe(0);
+    expect(findStockMismatches(app.database.db)).toEqual([]);
+
+    const audit = (await shop.owner.get('/api/audit-logs')).json().items;
+    expect(audit.filter((a: { action: string }) => a.action === 'return.resolve')).toHaveLength(3);
+  });
+
+  it('resolves each unit only once', async () => {
+    const shop = await returned();
+    await shop.resolve(shop.ramItem, 'restocked');
+    const again = await shop.resolve(shop.ramItem, 'written_off');
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.code).toBe('ALREADY_RESOLVED');
+    expect(productRow(app, shop.ram).onHand).toBe(9);
+
+    expect((await shop.resolve(99999, 'restocked')).statusCode).toBe(404);
+    expect((await shop.resolve(shop.cpu1Item, 'pending')).statusCode).toBe(400);
+    const other = await shop.staff.post(`/api/returns/9999/items/${shop.cpu1Item}/resolve`, {
+      disposition: 'restocked',
+    });
+    expect(other.statusCode).toBe(404);
+  });
+});
