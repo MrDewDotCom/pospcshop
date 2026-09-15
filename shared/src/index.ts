@@ -2,6 +2,8 @@
 // Consumed as TypeScript source (no build step).
 
 export * from './money';
+export * from './bahttext';
+export * from './phone';
 export * from './pricing';
 export * from './datetime';
 export * from './docNumber';

@@ -9,6 +9,8 @@ const EVERYONE: readonly Role[] = ['owner', 'staff'];
 export const PERMISSIONS = {
   /** See cost, profit, inventory value, and receipt cost totals. */
   'cost.view': OWNER,
+  /** See revenue totals (net sales, refunds, daily sales chart). Staff get activity only (Q13). */
+  'revenue.view': OWNER,
 
   'product.create': EVERYONE, // staff: non-money fields only, starts as "awaiting price"
   'product.editDetails': EVERYONE, // images, description, specs
@@ -72,6 +74,11 @@ export const STAFF_FORBIDDEN_KEYS = [
   'profitSatang',
   'marginBp',
   'inventoryValueSatang',
+  // Revenue aggregates (dashboard, Q13). Per-document amounts such as a sale's `totalSatang` or a
+  // return's `refundSatang` stay visible: staff take that money at the counter.
+  'grossSalesSatang',
+  'netSalesSatang',
+  'refundTotalSatang',
 ] as const;
 
 /** Returns the JSON paths of any forbidden keys found anywhere inside `value`. */

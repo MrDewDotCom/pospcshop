@@ -28,3 +28,14 @@ export type VoidInput = z.input<typeof voidInputSchema>;
 
 /** ISO-8601 UTC timestamp as sent by the API (the DB stores epoch milliseconds). */
 export const isoDateTimeSchema = z.string();
+
+/** Bangkok calendar date "YYYY-MM-DD" (C.E.), used by inclusive `from`/`to` range filters. */
+export const bangkokDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'รูปแบบวันที่ไม่ถูกต้อง' });
+
+/** `?flag=true|false` query parameter → boolean (absent = false). */
+export const booleanQuerySchema = z
+  .enum(['true', 'false'])
+  .optional()
+  .transform((v) => v === 'true');

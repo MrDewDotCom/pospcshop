@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { baht } from './money';
 import {
+  allocateRefund,
   applyPriceChange,
   averageAfterRemoval,
+  cartTotals,
+  checkPayment,
   correctedAverageCost,
   discountBadgeLabel,
   discountPercent,
   endDiscount,
   isDiscounted,
+  lineSavingsSatang,
+  lineTotalSatang,
   movingAverageCost,
+  netSalesSatang,
+  saleProfitSatang,
+  totalCostSatang,
   unitSavingsSatang,
   type PriceState,
 } from './pricing';
@@ -149,5 +157,108 @@ describe('endDiscount', () => {
   it('leaves an undiscounted price alone', () => {
     expect(endDiscount(priced(100))).toEqual(priced(100));
     expect(endDiscount(priced(100, 90))).toEqual(priced(100));
+  });
+});
+
+describe('cart totals', () => {
+  it('adds line totals, savings, and units', () => {
+    const lines = [
+      { unitPriceSatang: baht(80), regularPriceSatang: baht(100), qty: 2 }, // saves 40
+      { unitPriceSatang: baht(1590), regularPriceSatang: null, qty: 1 },
+      { unitPriceSatang: baht(500), regularPriceSatang: baht(450), qty: 3 }, // regular below price: no savings
+    ];
+    expect(lineTotalSatang(lines[0])).toBe(baht(160));
+    expect(lineSavingsSatang(lines[0])).toBe(baht(40));
+    expect(lineSavingsSatang(lines[2])).toBe(0);
+    expect(cartTotals(lines)).toEqual({
+      totalSatang: baht(160 + 1590 + 1500),
+      savingsSatang: baht(40),
+      itemCount: 6,
+    });
+  });
+
+  it('is zero for an empty cart and rejects bad quantities', () => {
+    expect(cartTotals([])).toEqual({ totalSatang: 0, savingsSatang: 0, itemCount: 0 });
+    expect(() => lineTotalSatang({ unitPriceSatang: 100, qty: 0 })).toThrow(RangeError);
+    expect(() => lineTotalSatang({ unitPriceSatang: 100, qty: 1.5 })).toThrow(RangeError);
+  });
+
+  it('sums cost', () => {
+    expect(
+      totalCostSatang([
+        { unitCostSatang: baht(60), qty: 2 },
+        { unitCostSatang: baht(1200), qty: 1 },
+      ]),
+    ).toBe(baht(1320));
+  });
+});
+
+describe('checkPayment', () => {
+  it('gives change for cash that covers the total', () => {
+    expect(checkPayment('cash', baht(2000), baht(1590))).toEqual({
+      ok: true,
+      changeSatang: baht(410),
+      problem: null,
+    });
+    expect(checkPayment('cash', baht(1590), baht(1590)).changeSatang).toBe(0);
+  });
+
+  it('refuses cash below the total', () => {
+    expect(checkPayment('cash', baht(1500), baht(1590))).toEqual({
+      ok: false,
+      changeSatang: 0,
+      problem: 'insufficient',
+    });
+  });
+
+  it('requires a transfer to match the total exactly', () => {
+    expect(checkPayment('transfer', baht(1590), baht(1590))).toEqual({
+      ok: true,
+      changeSatang: 0,
+      problem: null,
+    });
+    expect(checkPayment('transfer', baht(1600), baht(1590)).problem).toBe('mismatch');
+    expect(checkPayment('transfer', baht(1500), baht(1590)).problem).toBe('mismatch');
+  });
+});
+
+describe('allocateRefund', () => {
+  it('returns the line values when the full amount is refunded', () => {
+    expect(allocateRefund(baht(300), [baht(100), baht(200)])).toEqual([baht(100), baht(200)]);
+  });
+
+  it('splits a reduced refund in proportion and always adds up exactly', () => {
+    expect(allocateRefund(baht(150), [baht(100), baht(200)])).toEqual([baht(50), baht(100)]);
+    const shares = allocateRefund(100, [1, 1, 1]);
+    expect(shares).toEqual([34, 33, 33]);
+    expect(shares.reduce((a, b) => a + b, 0)).toBe(100);
+  });
+
+  it('never gives a line more than it was worth or a negative share', () => {
+    const shares = allocateRefund(1, [1, 1, 0]);
+    expect(shares).toEqual([1, 0, 0]);
+    expect(allocateRefund(0, [baht(10), baht(20)])).toEqual([0, 0]);
+  });
+
+  it('handles zero-value lines and empty input', () => {
+    expect(allocateRefund(0, [0, 0])).toEqual([0, 0]);
+    expect(allocateRefund(0, [])).toEqual([]);
+    expect(() => allocateRefund(-1, [100])).toThrow(RangeError);
+  });
+});
+
+describe('sale profit', () => {
+  it('takes refunds out of sales and returned cost out of cost', () => {
+    const figures = {
+      totalSatang: baht(1000),
+      refundedSatang: baht(300),
+      totalCostSatang: baht(700),
+      returnedCostSatang: baht(200),
+    };
+    expect(netSalesSatang(figures)).toBe(baht(700));
+    expect(saleProfitSatang(figures)).toBe(baht(200)); // 700 − (700 − 200)
+    expect(saleProfitSatang({ ...figures, refundedSatang: 0, returnedCostSatang: 0 })).toBe(
+      baht(300),
+    );
   });
 });

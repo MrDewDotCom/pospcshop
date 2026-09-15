@@ -78,6 +78,164 @@ export function endDiscount(current: PriceState): PriceState {
   return { priceSatang: current.regularPriceSatang, regularPriceSatang: null };
 }
 
+// ---------- cart and checkout (PLAN.md §7.3–7.4) ----------
+// The POS shows live totals with these functions and the server recomputes the sale with the same ones,
+// so the screen and the stored document always agree. There is no discount or VAT step: prices are final
+// (Q4, Q6). VAT, if it's ever added, becomes one extra step in `cartTotals`.
+
+export interface CartLine {
+  unitPriceSatang: number;
+  /** Regular price snapshot; it only counts as savings when it's above the unit price. */
+  regularPriceSatang: number | null;
+  qty: number;
+}
+
+function assertQty(qty: number): void {
+  if (!Number.isSafeInteger(qty) || qty <= 0)
+    throw new RangeError('qty must be a positive integer');
+}
+
+export function lineTotalSatang(line: Pick<CartLine, 'unitPriceSatang' | 'qty'>): number {
+  assertSatang(line.unitPriceSatang, 'unitPriceSatang');
+  assertQty(line.qty);
+  return line.unitPriceSatang * line.qty;
+}
+
+/** What the customer saves on a line compared with the regular price ("ประหยัดไป", P19). */
+export function lineSavingsSatang(line: CartLine): number {
+  return (
+    unitSavingsSatang({
+      priceSatang: line.unitPriceSatang,
+      regularPriceSatang: line.regularPriceSatang,
+    }) * line.qty
+  );
+}
+
+export interface CartTotals {
+  totalSatang: number;
+  savingsSatang: number;
+  /** Number of units (Σ qty). */
+  itemCount: number;
+}
+
+export function cartTotals(lines: readonly CartLine[]): CartTotals {
+  return lines.reduce<CartTotals>(
+    (acc, line) => ({
+      totalSatang: acc.totalSatang + lineTotalSatang(line),
+      savingsSatang: acc.savingsSatang + lineSavingsSatang(line),
+      itemCount: acc.itemCount + line.qty,
+    }),
+    { totalSatang: 0, savingsSatang: 0, itemCount: 0 },
+  );
+}
+
+/** Owner only: Σ unit cost × qty. */
+export function totalCostSatang(lines: readonly { unitCostSatang: number; qty: number }[]): number {
+  return lines.reduce((sum, line) => {
+    assertSatang(line.unitCostSatang, 'unitCostSatang');
+    assertQty(line.qty);
+    return sum + line.unitCostSatang * line.qty;
+  }, 0);
+}
+
+export type PaymentProblem = 'insufficient' | 'mismatch';
+
+export const PAYMENT_PROBLEM_MESSAGES: Record<PaymentProblem, string> = {
+  insufficient: 'จำนวนเงินที่รับน้อยกว่ายอดที่ต้องชำระ',
+  mismatch: 'ยอดโอนต้องเท่ากับยอดที่ต้องชำระพอดี',
+};
+
+export interface PaymentCheck {
+  ok: boolean;
+  /** Cash only: received − total. 0 for transfers and when the payment isn't valid. */
+  changeSatang: number;
+  problem: PaymentProblem | null;
+}
+
+/**
+ * The payment step of checkout (Q9). Cash: the amount received must cover the total, and the change is
+ * the difference. Transfer: the amount received must equal the total exactly — typing it is the explicit
+ * confirmation that the money arrived.
+ */
+export function checkPayment(
+  method: 'cash' | 'transfer',
+  receivedSatang: number,
+  totalSatang: number,
+): PaymentCheck {
+  assertSatang(receivedSatang, 'receivedSatang');
+  assertSatang(totalSatang, 'totalSatang');
+  if (method === 'transfer') {
+    return receivedSatang === totalSatang
+      ? { ok: true, changeSatang: 0, problem: null }
+      : { ok: false, changeSatang: 0, problem: 'mismatch' };
+  }
+  return receivedSatang >= totalSatang
+    ? { ok: true, changeSatang: receivedSatang - totalSatang, problem: null }
+    : { ok: false, changeSatang: 0, problem: 'insufficient' };
+}
+
+// ---------- returns and profit (PLAN.md §7.8) ----------
+
+/**
+ * Splits a refund across return lines in proportion to what each line was worth (largest remainder, so
+ * the shares always add up to the refund exactly and no share exceeds its line's value when the refund
+ * doesn't exceed the total). Used when the owner overrides a return's refund amount (P21).
+ */
+export function allocateRefund(
+  refundSatang: number,
+  lineValuesSatang: readonly number[],
+): number[] {
+  assertSatang(refundSatang, 'refundSatang');
+  if (refundSatang < 0) throw new RangeError('refundSatang must not be negative');
+  lineValuesSatang.forEach((v) => {
+    assertSatang(v, 'lineValueSatang');
+    if (v < 0) throw new RangeError('line values must not be negative');
+  });
+  const totalValue = lineValuesSatang.reduce((a, b) => a + b, 0);
+  if (lineValuesSatang.length === 0) return [];
+  if (totalValue === 0) {
+    // Nothing to weigh by: the whole refund sits on the first line.
+    return lineValuesSatang.map((_, i) => (i === 0 ? refundSatang : 0));
+  }
+  const refund = BigInt(refundSatang);
+  const total = BigInt(totalValue);
+  const shares = lineValuesSatang.map((value, index) => {
+    const exact = refund * BigInt(value);
+    return { index, floor: exact / total, remainder: exact % total };
+  });
+  let left = refund - shares.reduce((sum, s) => sum + s.floor, 0n);
+  const result = shares.map((s) => s.floor);
+  // Hand the leftover satang to the largest remainders (earlier lines win ties).
+  for (const s of [...shares].sort((a, b) =>
+    a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1,
+  )) {
+    if (left === 0n) break;
+    result[s.index] += 1n;
+    left -= 1n;
+  }
+  return result.map(Number);
+}
+
+export interface SaleFigures {
+  totalSatang: number;
+  refundedSatang: number;
+  totalCostSatang: number;
+  /** Cost of the lines that came back (Σ return line unit cost × qty). */
+  returnedCostSatang: number;
+}
+
+/** Net sales = sales − refunds (§7.8). */
+export function netSalesSatang(
+  figures: Pick<SaleFigures, 'totalSatang' | 'refundedSatang'>,
+): number {
+  return figures.totalSatang - figures.refundedSatang;
+}
+
+/** Owner only. Returned lines leave both revenue (the refund) and cost (their unit cost). */
+export function saleProfitSatang(figures: SaleFigures): number {
+  return netSalesSatang(figures) - (figures.totalCostSatang - figures.returnedCostSatang);
+}
+
 // ---------- cost (owner only; PLAN.md §7.2) ----------
 
 /**

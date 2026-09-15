@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { SERIAL_STATUSES, STOCK_MOVEMENT_TYPES } from '../enums';
-import { paginationQuerySchema } from './common';
+import { bangkokDateSchema, paginationQuerySchema } from './common';
 
 // ---------- movements (ledger) ----------
 
@@ -25,11 +25,6 @@ export const stockMovementOwnerSchema = movementBase.extend({
   unitCostSatang: z.number().int().nullable(),
 });
 export type StockMovement = z.infer<typeof movementBase> & { unitCostSatang?: number | null };
-
-/** Bangkok calendar date "YYYY-MM-DD" (inclusive range filters). */
-const bangkokDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'รูปแบบวันที่ไม่ถูกต้อง' });
 
 export const listStockMovementsQuerySchema = paginationQuerySchema.extend({
   productId: z.coerce.number().int().positive().optional(),

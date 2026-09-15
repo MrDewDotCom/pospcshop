@@ -190,3 +190,13 @@ export const RETURN_DISPOSITION_LABELS: Record<ReturnDisposition, string> = {
   sent_to_claim: 'ส่งเคลมแล้ว',
   written_off: 'ตัดจำหน่ายแล้ว',
 };
+
+/** The decisions that take a returned unit out of quarantine. */
+export const RESOLVED_RETURN_DISPOSITIONS = ['restocked', 'sent_to_claim', 'written_off'] as const;
+export type ResolvedReturnDisposition = (typeof RESOLVED_RETURN_DISPOSITIONS)[number];
+/** Button labels for the resolve actions. */
+export const RETURN_RESOLVE_ACTION_LABELS: Record<ResolvedReturnDisposition, string> = {
+  restocked: 'คืนเข้าสต็อก',
+  sent_to_claim: 'ส่งเคลม',
+  written_off: 'ตัดจำหน่าย',
+};

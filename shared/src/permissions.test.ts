@@ -5,6 +5,8 @@ describe('permissions', () => {
   it('keeps money and admin actions owner-only', () => {
     for (const permission of [
       'cost.view',
+      'revenue.view',
+      'customer.archive',
       'product.editPricing',
       'product.editCore',
       'goodsReceipt.verifyCost',
@@ -29,6 +31,7 @@ describe('permissions', () => {
       'sale.create',
       'return.create',
       'return.resolve',
+      'customer.edit',
       'build.edit',
     ] as const) {
       expect(can('staff', permission), permission).toBe(true);
