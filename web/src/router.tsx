@@ -10,6 +10,7 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { RecoverPage } from '@/features/auth/RecoverPage';
 import { HomePage } from '@/features/home/HomePage';
 import { NotFoundPage } from '@/features/home/NotFoundPage';
+import { PosPage } from '@/features/pos/PosPage';
 import { ProductDetailPage } from '@/features/products/ProductDetailPage';
 import { ProductCreatePage, ProductEditPage } from '@/features/products/ProductFormPage';
 import { ProductsPage } from '@/features/products/ProductsPage';
@@ -53,6 +54,10 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <HomePage /> },
               { path: 'account', element: <AccountPage /> },
+              {
+                element: <RequirePermission permission="sale.create" />,
+                children: [{ path: 'pos', element: <PosPage /> }],
+              },
               { path: 'products', element: <ProductsPage /> },
               { path: 'products/new', element: <ProductCreatePage /> },
               { path: 'products/:id', element: <ProductDetailPage /> },

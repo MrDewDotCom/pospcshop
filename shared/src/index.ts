@@ -4,6 +4,7 @@
 export * from './money';
 export * from './bahttext';
 export * from './phone';
+export * from './promptpay';
 export * from './pricing';
 export * from './datetime';
 export * from './docNumber';

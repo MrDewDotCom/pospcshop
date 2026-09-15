@@ -94,6 +94,7 @@ be sold until the owner sets the price. After creation, staff can edit only its 
 | P22 | **A sold serial unit snapshots its own actual cost**, not the product's moving average (non-serial lines keep using the average)                                                                                                                | We already know what that unit cost when it was received, so profit per sale is exact instead of averaged (Phase 2)                                                         |
 | P23 | **`sale_items` ships with its build columns (`kind`, `parent_item_id`, `build_id`) in Phase 2**, even though only `product` and `service` lines exist until Phase 3                                                                             | Altering a financial table later is the migration we least want to run; the columns cost nothing while empty                                                                |
 | P24 | **Baht-in-words (`bahtText`) lives in `shared/bahttext.ts`** as a pure, unit-tested function (no dependency), used on receipts and return slips                                                                                                 | Thai receipts are expected to show the total in words; the rules are small and worth testing rather than trusting a package                                                 |
+| P26 | **The PromptPay QR payload is built in `shared/promptpay.ts`** (EMVCo tag-length-value fields + CRC-16, unit-tested) instead of the `promptpay-qr` package; `qrcode` still renders it                                                           | The package pulls in an old `qrcode` 0.9 (next to our 1.5), `crc`, and `minimist` for ~40 lines of logic; one small tested function is easier to trust and to keep offline  |
 | P25 | **Checkout sends the total the cashier saw (`expectedTotalSatang`)**; the server still prices every line from the product records and refuses with `PRICE_CHANGED` when the two differ                                                          | If the owner changes a price while a cart is open, the customer is never charged (or given change for) an amount other than the one on screen                               |
 
 ---
@@ -142,6 +143,8 @@ html-to-image, jsPDF, Vitest, @fontsource (Thai fonts)
   `openapi-types` as peer dependencies. Instead, `server/src/lib/zod.ts` (~30 lines) gives Fastify a Zod
   validator compiler and a type provider. The result is the same, with fewer dependencies.
 - `sonner` is used directly (shadcn's sonner wrapper would add `next-themes`).
+- **`promptpay-qr` is not used** (P26): its payload logic lives in `shared/promptpay.ts`; the QR image is
+  drawn with `qrcode`, which is already installed.
 - React Router is v8 (same API as v7 without the old future flags): `createBrowserRouter` from `react-router`,
   `RouterProvider` from `react-router/dom`.
 

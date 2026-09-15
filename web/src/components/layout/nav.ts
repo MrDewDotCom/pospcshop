@@ -7,6 +7,7 @@ import {
   PackagePlus,
   ScanSearch,
   Settings,
+  ShoppingCart,
   Truck,
   Users,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ export interface NavItem {
 // Grows as Phase 1 modules are built (products, receiving, stock, …).
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'หน้าแรก', icon: House },
+  { to: '/pos', label: 'ขายสินค้า', icon: ShoppingCart, permission: 'sale.create' },
   { to: '/stock/lookup', label: 'เช็คสต็อก', icon: ScanSearch },
   { to: '/products', label: 'สินค้า', icon: Package },
   { to: '/receiving', label: 'รับสินค้าเข้า', icon: PackagePlus },
