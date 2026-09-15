@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -20,7 +20,10 @@ import { formatMoney } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useCurrentUser } from '@/features/auth/queries';
 import { useShopSettings } from '@/features/settings/queries';
-import { DailySalesChart } from './DailySalesChart';
+// Recharts is only needed by the owner's chart, so it loads on demand.
+const DailySalesChart = lazy(() =>
+  import('./DailySalesChart').then((m) => ({ default: m.DailySalesChart })),
+);
 import {
   presetRange,
   RANGE_PRESET_LABELS,
@@ -303,7 +306,9 @@ function OwnerDashboard() {
           </div>
 
           {summary.daily && summary.daily.length > 1 && (
-            <DailySalesChart daily={summary.daily} buddhistEra={buddhistEra} />
+            <Suspense fallback={<div className="h-80 rounded-xl border bg-background" />}>
+              <DailySalesChart daily={summary.daily} buddhistEra={buddhistEra} />
+            </Suspense>
           )}
 
           <div className="grid gap-4 lg:grid-cols-2">

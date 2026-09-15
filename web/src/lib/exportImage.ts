@@ -6,8 +6,7 @@ import { getFontEmbedCSS, toCanvas } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { downloadBlob } from './download';
 
-/** 540px layout × 2 = the 1080px-wide image LINE and Messenger show well. */
-export const DOCUMENT_WIDTH_PX = 540;
+/** Documents are laid out 540px wide (DocumentLayout); × 2 = a 1080px-wide image. */
 const PIXEL_RATIO = 2;
 
 let fontEmbedCss: Promise<string> | null = null;

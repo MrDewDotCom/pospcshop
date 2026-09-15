@@ -4,7 +4,9 @@ import '@fontsource/sarabun/400.css';
 import '@fontsource/sarabun/600.css';
 import '@fontsource/sarabun/700.css';
 import type { StaffShopSettings } from '@pcshop/shared';
-import { DOCUMENT_WIDTH_PX } from '@/lib/exportImage';
+
+/** 540px layout × pixel ratio 2 = the 1080px-wide image LINE and Messenger show well. */
+export const DOCUMENT_WIDTH_PX = 540;
 
 // Documents sent to customers (receipts, return slips; quotes and repair slips later) share this
 // frame. They're exported as images, so colors are plain hex values (not the app's theme variables)

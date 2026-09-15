@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { downloadDocumentPdf, downloadDocumentPng } from '@/lib/exportImage';
 
 /**
  * Preview of a customer document with download buttons. Downloading is the primary way to share it
@@ -38,6 +37,8 @@ export function DocumentDialog({
     if (!ref.current) return;
     setBusy(kind);
     try {
+      // Loaded on first use: html-to-image and jsPDF are most of the app's weight.
+      const { downloadDocumentPdf, downloadDocumentPng } = await import('@/lib/exportImage');
       if (kind === 'png') await downloadDocumentPng(ref.current, `${filename}.png`);
       else await downloadDocumentPdf(ref.current, `${filename}.pdf`);
     } catch {
