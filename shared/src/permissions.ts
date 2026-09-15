@@ -79,6 +79,7 @@ export const STAFF_FORBIDDEN_KEYS = [
   'grossSalesSatang',
   'netSalesSatang',
   'refundTotalSatang',
+  'revenueSatang',
 ] as const;
 
 /** Returns the JSON paths of any forbidden keys found anywhere inside `value`. */

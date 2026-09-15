@@ -62,17 +62,3 @@ export const useVoidReceipt = () =>
   useReceiptMutation(({ id, ...input }: VoidInput & { id: number }) =>
     api.post<GoodsReceipt>(`/api/goods-receipts/${id}/void`, input),
   );
-
-/** How many receipts wait for the owner's cost review (home page badge). */
-export function useUnverifiedReceiptCount(enabled: boolean) {
-  return useQuery({
-    queryKey: [...receiptsKey, 'list', 'unverified-count'],
-    queryFn: () =>
-      api
-        .get<Paginated<GoodsReceiptListItem>>(
-          '/api/goods-receipts?costStatus=unverified&status=posted&pageSize=1',
-        )
-        .then((r) => r.total),
-    enabled,
-  });
-}

@@ -30,21 +30,6 @@ export function useProducts(query: ListProductsQuery) {
   });
 }
 
-/**
- * Products staff created that still have no selling price (OQ3). Shown as an owner to-do on the home
- * page, because such a product can't be sold until the owner prices it.
- */
-export function useAwaitingPriceCount(enabled: boolean) {
-  return useQuery({
-    queryKey: [...productsKey, 'list', 'awaiting-price-count'],
-    queryFn: () =>
-      api
-        .get<Paginated<ProductListItem>>('/api/products?status=awaitingPrice&pageSize=1')
-        .then((r) => r.total),
-    enabled,
-  });
-}
-
 export function useProduct(id: number) {
   return useQuery({
     queryKey: [...productsKey, 'detail', id],
