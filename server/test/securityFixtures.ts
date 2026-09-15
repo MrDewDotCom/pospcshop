@@ -25,6 +25,7 @@ export interface SeededShop {
     unverifiedReceipt: number;
     voidedReceipt: number;
     customer: number;
+    sale: number;
   };
   codes: { barcode: string; serial: string; adjustmentDocNo: string };
 }
@@ -161,11 +162,28 @@ export async function seedEverything(app: FastifyInstance): Promise<SeededShop> 
     staff.post('/api/customers', { name: 'คุณลูกค้า ประจำ', phone: '089-999-0000' }),
   );
 
+  // A sale by staff with a serial unit and a discounted line, to a customer.
+  const cpuInStock = (await owner.get(`/api/products/${cpu.id}/serials?status=in_stock`)).json()
+    .items as { id: number }[];
+  const saleTotal = 6_990_00 + 2 * 1_690_00;
+  const sale = await ok(
+    staff.post('/api/sales', {
+      items: [
+        { productId: cpu.id, qty: 1, serialItemIds: [cpuInStock[0]!.id] },
+        { productId: ram.id, qty: 2 },
+      ],
+      customerId: customer.id,
+      payment: { method: 'cash', receivedSatang: saleTotal + 100_00 },
+      expectedTotalSatang: saleTotal,
+    }),
+  );
+
   return {
     owner,
     staff,
     ids: {
       customer: customer.id,
+      sale: sale.id,
       staffUser,
       tag: tag.id,
       supplier: supplier.id,

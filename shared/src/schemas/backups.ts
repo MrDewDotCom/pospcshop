@@ -22,6 +22,7 @@ export interface BackupInfo {
   schemaVersion: number;
   productCount: number;
   goodsReceiptCount: number;
+  saleCount: number;
 }
 
 export interface BackupOverview {

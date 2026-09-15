@@ -23,6 +23,8 @@ const STAFF_MONEY_WRITE_EXCEPTIONS: Record<string, string> = {
     'Q2/OQ1: staff may type the supplier unit cost; write-only, and unverified until the owner reviews it',
   'POST /api/products':
     'OQ3: staff may create products, but the `pricing` object is refused for staff in the service',
+  'POST /api/sales':
+    'Q9/P25: the amount received and the total the cashier saw are checks against server-side prices; no price is written from them',
 };
 
 /** Dotted paths of every key ending in "Satang" inside a Zod schema (walks wrappers, arrays, pipes). */

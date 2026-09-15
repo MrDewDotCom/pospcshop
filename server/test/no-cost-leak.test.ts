@@ -70,6 +70,13 @@ function fixtures({ ids, codes }: SeededShop): Record<string, string[]> {
     '/api/customers/phone-matches': ['/api/customers/phone-matches?phone=0899990000'],
     '/api/customers/:id': [`/api/customers/${ids.customer}`],
     '/api/customers/:id/history': [`/api/customers/${ids.customer}/history`],
+    '/api/sales': [
+      '/api/sales',
+      '/api/sales?mine=true',
+      '/api/sales?q=S-',
+      '/api/sales?status=paid',
+    ],
+    '/api/sales/:id': [`/api/sales/${ids.sale}`],
   };
 }
 
@@ -114,6 +121,9 @@ describe('no cost leak to staff', () => {
     // Sanity: the seed produced cost data where cost lives, so a leak would have been caught.
     expect([...ownerRoutesWithCost].sort()).toEqual(
       [
+        '/api/customers/:id/history',
+        '/api/sales',
+        '/api/sales/:id',
         '/api/goods-receipts',
         '/api/goods-receipts/:id',
         '/api/products',

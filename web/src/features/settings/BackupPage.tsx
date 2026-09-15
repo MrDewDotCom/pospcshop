@@ -281,6 +281,7 @@ export function BackupPage() {
                 <TableHead>วันเวลา</TableHead>
                 <TableHead>ประเภท</TableHead>
                 <TableHead className="text-right">สินค้า</TableHead>
+                <TableHead className="text-right">บิลขาย</TableHead>
                 <TableHead className="text-right">ขนาด</TableHead>
                 <TableHead className="w-0" />
               </TableRow>
@@ -288,7 +289,7 @@ export function BackupPage() {
             <TableBody>
               {overview.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                     ยังไม่มีข้อมูลสำรอง กด “สำรองข้อมูลตอนนี้” เพื่อสร้างชุดแรก
                   </TableCell>
                 </TableRow>
@@ -305,6 +306,9 @@ export function BackupPage() {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {backup.productCount.toLocaleString('th-TH')}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {backup.saleCount.toLocaleString('th-TH')}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">
                     {formatBytes(backup.sizeBytes)}

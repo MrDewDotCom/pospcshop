@@ -25,7 +25,7 @@ import {
 } from '@pcshop/shared';
 import type { DataPaths } from '../config';
 import type { DatabaseManager } from '../db/client';
-import { goodsReceipts, products, sessions, shopSettings, users } from '../db/schema';
+import { goodsReceipts, products, sales, sessions, shopSettings, users } from '../db/schema';
 import { writeAudit } from '../lib/audit';
 import { AppError, badRequest, conflict, notFound } from '../lib/errors';
 import { findStockMismatches } from './stock.service';
@@ -41,6 +41,8 @@ interface Manifest {
   reason: BackupReason;
   productCount: number;
   goodsReceiptCount: number;
+  /** Added in Phase 2; older manifests don't have it. */
+  saleCount?: number;
   sizeBytes: number;
   ok: true;
 }
@@ -152,6 +154,7 @@ export function listBackups(directory: string): BackupInfo[] {
           schemaVersion: manifest.schemaVersion,
           productCount: manifest.productCount,
           goodsReceiptCount: manifest.goodsReceiptCount,
+          saleCount: manifest.saleCount ?? 0,
         },
       ];
     })
@@ -224,6 +227,7 @@ export function createBackup(
         reason,
         productCount: db.select({ n: count() }).from(products).get()!.n,
         goodsReceiptCount: db.select({ n: count() }).from(goodsReceipts).get()!.n,
+        saleCount: db.select({ n: count() }).from(sales).get()!.n,
         sizeBytes: 0,
         ok: true,
       };
@@ -321,6 +325,7 @@ export async function backupBeforeMigrations(
       reason: 'pre_migration',
       productCount: 0,
       goodsReceiptCount: 0,
+      saleCount: 0,
       sizeBytes: dirSize(partial),
       ok: true,
     };
