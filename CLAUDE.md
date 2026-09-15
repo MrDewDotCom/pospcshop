@@ -26,7 +26,10 @@ starting any phase. When a decision there changes, update PLAN.md in the same co
 - Phase 1: all 17 sub-tasks built (PLAN.md §15); the owner still has
   [docs/PHASE1-TEST-CHECKLIST.md](docs/PHASE1-TEST-CHECKLIST.md) to work through, so Phase 1 bug reports
   take priority over new Phase 2 work.
-- Phase 2 (POS, receipts, returns, customers, dashboard): in progress, sub-tasks in PLAN.md §16.
+- Phase 2 (POS, receipts, returns, customers, dashboard): all 12 sub-tasks built (PLAN.md §16); awaiting
+  the owner's [docs/PHASE2-TEST-CHECKLIST.md](docs/PHASE2-TEST-CHECKLIST.md). Don't start Phase 3 until
+  the owner confirms.
+- The repo is on GitHub: `origin` = https://github.com/MrDewDotCom/pospcshop (branch `main`).
 - This build is a **demo** for a prospective client. Keep scope tight; tax features are deferred.
 
 ## Key product decisions (details in PLAN.md §1)

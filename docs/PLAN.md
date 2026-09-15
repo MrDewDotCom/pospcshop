@@ -1,7 +1,7 @@
 # PC Shop Manager — Plan (Phase 0)
 
-> Status: **Approved. Phase 1 built (awaiting the owner's sign-off), Phase 2 in progress.** All open
-> questions are resolved (see §1.2).
+> Status: **Approved. Phases 1 and 2 built, both awaiting the owner's sign-off** (test checklists in
+> `docs/`). All open questions are resolved (see §1.2).
 > Project context: this build is a **demo** for a prospective client. Tax features (VAT, tax invoices)
 > are deferred to a possible paid follow-up.
 
@@ -1070,4 +1070,6 @@ money on the dashboard), Q14 (customer optional), and P21–P24.
     the serial lifecycle and integration tests
 11. **Dashboard:** owner summary (net sales, daily chart with Recharts, profit, inventory value, best
     sellers, low stock, pending returns, receipts to review) and the staff activity view (Q13)
-12. **Polish + Phase 2 test checklist**
+12. **Polish + Phase 2 test checklist** — export and chart libraries load on demand (main bundle
+    1.83 MB → 1.06 MB), return lines stack on phones so the resolve buttons stay reachable. The checklist
+    the owner works through is [PHASE2-TEST-CHECKLIST.md](PHASE2-TEST-CHECKLIST.md).

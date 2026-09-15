@@ -12,14 +12,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { errorMessage } from '@/lib/api';
 import { formatMoney, useFormat } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -149,70 +141,66 @@ export function ReturnDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="overflow-x-auto rounded-lg border bg-background">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>สินค้า</TableHead>
-              <TableHead className="text-right">จำนวน</TableHead>
-              <TableHead className="text-right">คืนเงิน</TableHead>
-              {showCost && <TableHead className="text-right">ต้นทุน/ชิ้น</TableHead>}
-              <TableHead>สถานะ</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ret.lines.map((line) => (
-              <TableRow key={line.id}>
-                <TableCell className="align-top whitespace-normal">
-                  <Link to={`/products/${line.productId}`} className="font-medium hover:underline">
-                    {line.productName}
-                  </Link>
-                  <div className="text-xs text-muted-foreground">{line.productSku}</div>
-                  {line.serialNo && (
-                    <Badge variant="outline" className="mt-1 font-mono font-normal">
-                      {line.serialNo}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right align-top tabular-nums">
-                  {line.qty.toLocaleString('th-TH')}
-                </TableCell>
-                <TableCell className="text-right align-top tabular-nums">
-                  {formatMoney(line.refundSatang)}
-                </TableCell>
-                {showCost && (
-                  <TableCell className="text-right align-top text-muted-foreground tabular-nums">
+      {/* Rows that wrap instead of a table: this page is used on phones, and the resolve buttons must
+          stay on screen without scrolling sideways. */}
+      <ul className="divide-y rounded-lg border bg-background">
+        {ret.lines.map((line) => (
+          <li key={line.id} className="flex flex-wrap items-start gap-x-6 gap-y-2 px-4 py-3">
+            <div className="min-w-0 flex-1 basis-56">
+              <Link to={`/products/${line.productId}`} className="font-medium hover:underline">
+                {line.productName}
+              </Link>
+              <div className="text-xs text-muted-foreground">{line.productSku}</div>
+              {line.serialNo && (
+                <Badge variant="outline" className="mt-1 font-mono font-normal">
+                  {line.serialNo}
+                </Badge>
+              )}
+            </div>
+            <dl className="flex gap-6 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">จำนวน</dt>
+                <dd className="tabular-nums">{line.qty.toLocaleString('th-TH')}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">คืนเงิน</dt>
+                <dd className="tabular-nums">{formatMoney(line.refundSatang)}</dd>
+              </div>
+              {showCost && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">ต้นทุน/ชิ้น</dt>
+                  <dd className="text-muted-foreground tabular-nums">
                     {formatMoney(line.unitCostSatang)}
-                  </TableCell>
-                )}
-                <TableCell className="align-top">
-                  <DispositionBadge disposition={line.disposition} />
-                  {line.resolvedAt && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {line.resolvedByName ?? '–'} · {format.dateTime(line.resolvedAt)}
-                      {line.resolutionNote && <div>{line.resolutionNote}</div>}
-                    </div>
-                  )}
-                  {line.disposition === 'pending' && user.can('return.resolve') && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {RESOLVED_RETURN_DISPOSITIONS.map((disposition) => (
-                        <Button
-                          key={disposition}
-                          size="xs"
-                          variant={disposition === 'restocked' ? 'default' : 'outline'}
-                          onClick={() => setResolving({ line, disposition })}
-                        >
-                          {RETURN_RESOLVE_ACTION_LABELS[disposition]}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                  </dd>
+                </div>
+              )}
+            </dl>
+            <div className="basis-full md:basis-64">
+              <DispositionBadge disposition={line.disposition} />
+              {line.resolvedAt && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {line.resolvedByName ?? '–'} · {format.dateTime(line.resolvedAt)}
+                  {line.resolutionNote && <div>{line.resolutionNote}</div>}
+                </div>
+              )}
+              {line.disposition === 'pending' && user.can('return.resolve') && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {RESOLVED_RETURN_DISPOSITIONS.map((disposition) => (
+                    <Button
+                      key={disposition}
+                      size="sm"
+                      variant={disposition === 'restocked' ? 'default' : 'outline'}
+                      onClick={() => setResolving({ line, disposition })}
+                    >
+                      {RETURN_RESOLVE_ACTION_LABELS[disposition]}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
 
       {dialog === 'slip' && <ReturnSlipDialog ret={ret} onClose={() => setDialog(null)} />}
       {dialog === 'refund' && <RefundDialog ret={ret} onClose={() => setDialog(null)} />}
